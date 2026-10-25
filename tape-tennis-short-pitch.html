@@ -650,14 +650,14 @@ const Net = {
 
 /* ===== GAME LOGIC ===== */
 const Game = {
-  me:null, online:false, S:null, lastEv:0, lastShot:0, started:false, timeOfDay:'afternoon', envType:'city', roadType:'paved', hasRiver:false, roomCode:null, forfeitHandled:false, username:(function(){try{return localStorage.getItem('bgl_name')||'';}catch(e){return '';}})(), pNames:{},
+  me:null, online:false, S:null, lastEv:0, lastShot:0, started:false, vsShown:false, timeOfDay:'afternoon', envType:'city', roadType:'paved', hasRiver:false, roomCode:null, forfeitHandled:false, username:(function(){try{return localStorage.getItem('bgl_name')||'';}catch(e){return '';}})(), pNames:{},
   fresh:()=>({inn:1,batter:'p1',balls:0,score:{p1:0,p2:0},over:false,ev:null,target:0,timeOfDay:Game.timeOfDay,envType:Game.envType,roadType:Game.roadType,hasRiver:Game.hasRiver}),
   setTime(t){ this.timeOfDay=t; if(typeof GFX!=='undefined' && GFX.scene) GFX.setTheme(t); },
   setEnv(type,road,river){ this.envType=type; this.roadType=road; this.hasRiver=river; if(typeof GFX!=='undefined' && GFX.scene) GFX.rebuildScene(); },
   names(){ if(!this.online) return {p1:'Player 1',p2:'Player 2'};
     const pn=this.pNames||{};
     return {p1: this.me==='p1' ? (pn.p1||'You') : (pn.p1||'Opp'), p2: this.me==='p2' ? (pn.p2||'You') : (pn.p2||'Opp') }; },
-  toMenu(){ if(this.online && Net.ref){ try{ Net.ref.off(); }catch(e){} try{ Net.ref.remove(); }catch(e){} Net.ref=null; } this.S=null; this.started=false; this.online=false; this.roomCode=null; UI.lobby(true); if(typeof showPanel==='function') showPanel('menu'); const eb=$('exitBtn'); if(eb) eb.style.display='none'; this.saveTrophies(); },
+  toMenu(){ this.vsShown=false; if(this.online && Net.ref){ try{ Net.ref.off(); }catch(e){} try{ Net.ref.remove(); }catch(e){} Net.ref=null; } this.S=null; this.started=false; this.online=false; this.roomCode=null; UI.lobby(true); if(typeof showPanel==='function') showPanel('menu'); const eb=$('exitBtn'); if(eb) eb.style.display='none'; this.saveTrophies(); },
   saveTrophies(){ try{ localStorage.setItem('bgl_trophies', String(this.trophies)); localStorage.setItem('bgl_rating', String(this.rating)); }catch(e){} },
   saveSkins(){ try{ localStorage.setItem('bgl_skins', JSON.stringify(this.skins)); }catch(e){} },
   unlockSkin(){ if(!Array.isArray(this.skins)) this.skins=['Classic']; if(!this.skins.includes('Champion')) this.skins.push('Champion'); this.skin=this.skins[this.skins.length-1]; try{localStorage.setItem('bgl_skin',this.skin);}catch(e){} this.saveSkins(); },
@@ -768,7 +768,7 @@ const Game = {
     if(s.envType) this.envType=s.envType;
     if(s.roadType) this.roadType=s.roadType;
     if(typeof s.hasRiver!=='undefined') this.hasRiver=s.hasRiver;
-    if(!this.started){ this.started=true; UI.lobby(false); GFX.rebuildScene(); GFX.setTheme(this.timeOfDay); GFX.batter.reset(); this.nextBall(); }
+    if(!this.started && !this.vsShown){ this.vsShown=true; const n=this.names(); UI.lobby(true, '<h1 style="font-size:42px;margin:10px 0">'+n.p1+'  ⚔️  '+n.p2+'</h1><p style="font-size:18px;opacity:.8">Match starting...</p>'); setTimeout(()=>{ this.started=true; UI.lobby(false); GFX.rebuildScene(); GFX.setTheme(this.timeOfDay); GFX.batter.reset(); this.nextBall(); UI.hud(this.S,this.names()); }, 2000); return; }
     UI.hud(s,this.names());
     if(s.ev && s.ev.id!==this.lastEv){ this.lastEv=s.ev.id; if(s.ev.by!==this.me){ this.present(s.ev); setTimeout(()=>this.afterBall(),2600); } }
   }
@@ -846,7 +846,7 @@ function renderStore(){
 }
 function renderLeaderboard(){ const list=$('lbList'); if(!list) return; list.textContent='Loading...';
   const render=(items)=>{ list.innerHTML=''; items.sort((a,b)=>(b.rating||0)-(a.rating||0)).slice(0,10).forEach((it,i)=>{ const div=document.createElement('div'); div.textContent=(i+1)+'. '+it.name+' — trophies '+ (it.trophies||0)+' · rating '+(it.rating||0); list.appendChild(div); }); };
-  if(typeof Net!=='undefined' && Net.db){ Net.db.ref('leaderboard').once('value').then(snap=>{ const v=snap.val()||{}; render(Object.values(v)); }).catch(()=>render([{name:Game.username,trophies:Game.trophies,rating:Game.rating}])); }
+  if(typeof Net!=='undefined' && Net.db){ Net.db.ref('leaderboard').once('value').then(snap=>{ const v=snap.val()||{}; const arr=Object.values(v); if(!arr.length) arr.push({name:Game.username,trophies:Game.trophies,rating:Game.rating}); render(arr); }).catch(err=>{ console.warn('LB err',err); list.textContent='Leaderboard load failed (Firebase rules?). Showing local.'; setTimeout(()=>render([{name:Game.username,trophies:Game.trophies,rating:Game.rating}]),1500); }); }
   else { render([{name:Game.username,trophies:Game.trophies,rating:Game.rating}]); }
 }
 refreshStats();
