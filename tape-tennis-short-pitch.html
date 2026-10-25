@@ -594,11 +594,12 @@ const Net = {
     try{ if(!window.firebase||FIREBASE_CONFIG.apiKey.startsWith('YOUR')) return false;
       firebase.initializeApp(FIREBASE_CONFIG); this.db=firebase.database(); this.ok=true; return true; }catch(e){ console.warn(e); return false; } },
   setRef(code){ 
+    if(!this.db){ try{ this.init(); }catch(e){} }
     if(this.ref){ try{ this.ref.off(); }catch(e){} } 
-    this.ref=this.db.ref('rooms/'+code); 
+    this.ref = this.db ? this.db.ref('rooms/'+code) : null; 
   },
   async join(code){
-    this.setRef(code); let role=null; const myName=Game.username||'Player';
+    this.setRef(code); if(!this.ref){ console.warn('Net.join: ref null'); return null; } let role=null; const myName=Game.username||'Player';
     const res=await this.ref.child('players').transaction(cur=>{ role=null;
       if(!cur){ role='p1'; return {p1:{name:myName}}; }
       if(cur.p1 && cur.p1.name===myName){ if(!cur.p2){ role='p1'; return cur; } return cur; }
@@ -608,8 +609,8 @@ const Net = {
     return res.committed?role:null;
   },
   cancelMatch(){ try{ if(!this.db) return; const uid=this.uid; this.db.ref('matchmaking/waiting').transaction(cur=> (cur && cur.uid===uid)?null:cur); this.db.ref('matchmaking/assign/'+uid).remove(); }catch(e){} },
-  on(path,cb){ this.ref.child(path).on('value',s=>cb(s.val())); },
-  set(path,val){ this.ref.child(path).set(val); },
+  on(path,cb){ if(!this.ref){ console.warn('Net.on: ref null', path); return; } this.ref.child(path).on('value',s=>cb(s.val())); },
+  set(path,val){ if(!this.ref){ console.warn('Net.set: ref null', path); return; } this.ref.child(path).set(val); },
   async findMatch(){
     if(!this.init()) return null;
     const uid=this.uid;
@@ -661,9 +662,10 @@ const Game = {
     if(this._vsTimer){ clearTimeout(this._vsTimer); this._vsTimer=null; }
     if(this._winnerTimer){ clearTimeout(this._winnerTimer); this._winnerTimer=null; }
     if(this.online && Net.ref){ 
-      try{ Net.ref.off(); }catch(e){} 
-      try{ Net.ref.remove(); }catch(e){} 
-      Net.ref=null; 
+      const _oldRef = Net.ref;
+      try{ _oldRef.off(); }catch(e){} 
+      try{ _oldRef.remove(); }catch(e){} 
+      if(Net.ref === _oldRef) Net.ref=null; 
     } 
     this.S=null; this.started=false; this.online=false; this.roomCode=null; this.me=null; 
     this.pNames={}; this.lastEv=0; this.lastShot=0; this.forfeitHandled=false; 
@@ -703,6 +705,7 @@ const Game = {
     else { code=codeOrMatch.code; role=codeOrMatch.role; if(!Net.init()) return false; Net.setRef(code); }
     if(!role) return false;
     this.me=role; this.roomCode=code; this.forfeitHandled=false;
+    if(!Net.ref) Net.setRef(code);
     if(Net.ref) try{ Net.ref.onDisconnect().remove(); }catch(e){}
     if(role==='p2') Net.set('players/p2',{name:Game.username||'Player'});
     if(role==='p1' && (typeof codeOrMatch!=='string')) Net.set('players/p1',{name:Game.username||'Player'});
