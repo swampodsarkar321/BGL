@@ -1,6 +1,9 @@
 <!DOCTYPE html>
 <html lang="bn">
 <head>
+<meta property="og:title" content="Bangladesh Gully League — Tape Tennis Cricket">
+<meta property="og:description" content="Play 1v1 gully cricket online with friends!">
+<meta name="twitter:card" content="summary_large_image">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 100 100%27%3E%3Ctext y=%27.9em%27 font-size=%2790%27%3E%F0%9F%8F%8F%3C/text%3E%3C/svg%3E">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
@@ -62,7 +65,7 @@ body.slow::after{background:radial-gradient(ellipse at center,transparent 32%,rg
     <button id="mCustom">Custom Match</button>
     <button id="mStore">Store</button>
     <button id="mLeaderboard">Leaderboard</button>
-    <button id="mAbout">About</button>
+    <button id="mAbout">About</button>     <button id="mShare">Share 📲</button>
     <button id="mExit">Exit</button>
     <button id="bLocal">Pass &amp; play · একই স্ক্রিনে</button>
   </div>
@@ -603,7 +606,11 @@ const Net = {
   async join(code){
     this.setRef(code); let role=null; const myName=Game.username||'Player';
     const res=await this.ref.child('players').transaction(cur=>{ role=null;
-      if(!cur){ role='p1'; return {p1:{name:myName}}; } if(!cur.p2){ role='p2'; return {...cur,p2:{name:myName}}; } return; });
+      if(!cur){ role='p1'; return {p1:{name:myName}}; }
+      if(cur.p1 && cur.p1.name===myName){ return cur; } // own room
+      if(!cur.p2){ role='p2'; return {...cur,p2:{name:myName}}; }
+      return cur;
+    });
     return res.committed?role:null;
   },
   on(path,cb){ this.ref.child(path).on('value',s=>cb(s.val())); },
@@ -613,8 +620,9 @@ const Net = {
     const uid=this.uid;
     let opponentUid=null;
     const res=await this.db.ref('matchmaking/waiting').transaction(cur=>{
-      if(!cur || (cur.ts && Date.now()-cur.ts>60000)){ return {uid, ts:Date.now()}; }
+      if(!cur || (cur.ts && Date.now()-cur.ts>60000)){ return {uid, name:Game.username||'Player', ts:Date.now()}; }
       if(cur.uid===uid) return cur;
+      if(cur.name && cur.name===(Game.username||'Player')){ return {uid, name:Game.username||'Player', ts:Date.now()}; }
       opponentUid=cur.uid;
       return null;
     });
@@ -910,6 +918,8 @@ $('bOnline').onclick=async()=>{ if(!ready) return; Sfx.init();
   }
   if(!ok) msg.textContent='Room is full. Try another code.';
 };
+
+$('mShare').onclick=async()=>{ const url=location.href; try{ if(navigator.share){ await navigator.share({title:'Bangladesh Gully League',text:'Play gully cricket with me!',url}); } else { await navigator.clipboard.writeText(url); alert('Link copied!'); } }catch(e){} };
 </script>
 </body>
 </html>
