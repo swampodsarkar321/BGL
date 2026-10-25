@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="bn">
 <head>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 100 100%27%3E%3Ctext y=%27.9em%27 font-size=%2790%27%3E%F0%9F%8F%8F%3C/text%3E%3C/svg%3E">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <title>বাংলাদেশ গলি লিগ (BGL)</title>
@@ -641,14 +642,14 @@ const Net = {
 
 /* ===== GAME LOGIC ===== */
 const Game = {
-  me:null, online:false, S:null, lastEv:0, lastShot:0, started:false, timeOfDay:'afternoon', envType:'city', roadType:'paved', hasRiver:false, username:(function(){try{return localStorage.getItem('bgl_name')||'';}catch(e){return '';}})(), pNames:{},
+  me:null, online:false, S:null, lastEv:0, lastShot:0, started:false, timeOfDay:'afternoon', envType:'city', roadType:'paved', hasRiver:false, roomCode:null, forfeitHandled:false, username:(function(){try{return localStorage.getItem('bgl_name')||'';}catch(e){return '';}})(), pNames:{},
   fresh:()=>({inn:1,batter:'p1',balls:0,score:{p1:0,p2:0},over:false,ev:null,target:0,timeOfDay:Game.timeOfDay,envType:Game.envType,roadType:Game.roadType,hasRiver:Game.hasRiver}),
   setTime(t){ this.timeOfDay=t; if(typeof GFX!=='undefined' && GFX.scene) GFX.setTheme(t); },
   setEnv(type,road,river){ this.envType=type; this.roadType=road; this.hasRiver=river; if(typeof GFX!=='undefined' && GFX.scene) GFX.rebuildScene(); },
   names(){ if(!this.online) return {p1:'Player 1',p2:'Player 2'};
     const pn=this.pNames||{};
     return {p1: this.me==='p1' ? (pn.p1||'You') : (pn.p1||'Opp'), p2: this.me==='p2' ? (pn.p2||'You') : (pn.p2||'Opp') }; },
-  toMenu(){ this.S=null; this.started=false; this.online=false; UI.lobby(true); if(typeof showPanel==='function') showPanel('menu'); const eb=$('exitBtn'); if(eb) eb.style.display='none'; this.saveTrophies(); },
+  toMenu(){ if(this.online && Net.ref){ try{ Net.ref.off(); }catch(e){} try{ Net.ref.remove(); }catch(e){} Net.ref=null; } this.S=null; this.started=false; this.online=false; this.roomCode=null; UI.lobby(true); if(typeof showPanel==='function') showPanel('menu'); const eb=$('exitBtn'); if(eb) eb.style.display='none'; this.saveTrophies(); },
   saveTrophies(){ try{ localStorage.setItem('bgl_trophies', String(this.trophies)); localStorage.setItem('bgl_rating', String(this.rating)); }catch(e){} },
   saveSkins(){ try{ localStorage.setItem('bgl_skins', JSON.stringify(this.skins)); }catch(e){} },
   saveCoins(){ try{ localStorage.setItem('bgl_coins', String(this.coins)); }catch(e){} },
@@ -662,7 +663,8 @@ const Game = {
     if(typeof codeOrMatch==='string'){ code=codeOrMatch; if(!Net.init()) return false; role=await Net.join(code); }
     else { code=codeOrMatch.code; role=codeOrMatch.role; if(!Net.init()) return false; Net.setRef(code); }
     if(!role) return false;
-    this.me=role;
+    this.me=role; this.roomCode=code; this.forfeitHandled=false;
+    if(Net.ref) try{ Net.ref.onDisconnect().remove(); }catch(e){}
     if(role==='p2') Net.set('players/p2',{name:Game.username||'Player'});
     if(role==='p1' && (typeof codeOrMatch!=='string')) Net.set('players/p1',{name:Game.username||'Player'});
     Net.on('players',pl=>{ if(pl){ Game.pNames={p1:(pl.p1&&pl.p1.name)||'', p2:(pl.p2&&pl.p2.name)||''}; }
@@ -734,12 +736,25 @@ const Game = {
       } else {
         this.updateStats(null); this.coins+=30; }
       this.saveCoins();
+      if(this.online && Net.ref){ try{ Net.ref.remove(); }catch(e){} }
       UI.hint(''); UI.lobby(true,`<h1>${res}</h1><p style="font-size:18px;font-weight:800">${detail}</p><p style="opacity:.7;font-size:13px">${tod} · ${env}</p><button onclick="Game.toMenu()">Main Menu</button>`);
       setTimeout(()=>this.toMenu(),4000); return; }
     GFX.bowler.reset(); this.nextBall();
   },
   onState(s){
-    if(!s) return; this.S=s;
+    if(!s){
+      if(this.started && this.online && !this.forfeitHandled && this.S && !this.S.over){
+        this.forfeitHandled=true;
+        const opp = this.me==='p1'?'p2':'p1';
+        if(!this.S.score) this.S.score={p1:0,p2:0};
+        this.S.score[opp]=0;
+        if(!this.S.score[this.me]) this.S.score[this.me]=1;
+        this.S.over=true;
+        try{ this.afterBall(); }catch(e){}
+      }
+      return;
+    }
+    this.S=s;
     if(s.timeOfDay) this.timeOfDay=s.timeOfDay;
     if(s.envType) this.envType=s.envType;
     if(s.roadType) this.roadType=s.roadType;
