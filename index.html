@@ -652,6 +652,7 @@ const Game = {
   toMenu(){ if(this.online && Net.ref){ try{ Net.ref.off(); }catch(e){} try{ Net.ref.remove(); }catch(e){} Net.ref=null; } this.S=null; this.started=false; this.online=false; this.roomCode=null; UI.lobby(true); if(typeof showPanel==='function') showPanel('menu'); const eb=$('exitBtn'); if(eb) eb.style.display='none'; this.saveTrophies(); },
   saveTrophies(){ try{ localStorage.setItem('bgl_trophies', String(this.trophies)); localStorage.setItem('bgl_rating', String(this.rating)); }catch(e){} },
   saveSkins(){ try{ localStorage.setItem('bgl_skins', JSON.stringify(this.skins)); }catch(e){} },
+  unlockSkin(){ if(!Array.isArray(this.skins)) this.skins=['Classic']; if(!this.skins.includes('Champion')) this.skins.push('Champion'); this.skin=this.skins[this.skins.length-1]; try{localStorage.setItem('bgl_skin',this.skin);}catch(e){} this.saveSkins(); },
   saveCoins(){ try{ localStorage.setItem('bgl_coins', String(this.coins)); }catch(e){} },
   saveItems(){ try{ localStorage.setItem('bgl_items', JSON.stringify(this.items)); localStorage.setItem('bgl_equipped', JSON.stringify(this.equipped)); }catch(e){} },
   updateStats(win){ if(win===true){ this.trophies+=1; this.rating+=100; } else if(win===false){ this.rating=Math.max(0,this.rating-70); } else { this.rating+=15; } this.saveTrophies(); this.syncLeaderboard(); },
