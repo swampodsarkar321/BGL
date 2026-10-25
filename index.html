@@ -589,14 +589,17 @@ const Sim = {
 
 /* ===== NETWORK (Firebase Realtime DB) ===== */
 const Net = {
-  ok:false, db:null, ref:null, uid:'u_'+Math.random().toString(36).slice(2),
-  init(){ if(this.ok) return true;
+  ok:false, db:null, ref:null, code:null, uid:'u_'+Math.random().toString(36).slice(2),
+  init(){ if(this.ok && this.db) return true; this.ok=false;
     try{ if(!window.firebase||FIREBASE_CONFIG.apiKey.startsWith('YOUR')) return false;
-      firebase.initializeApp(FIREBASE_CONFIG); this.db=firebase.database(); this.ok=true; return true; }catch(e){ console.warn(e); return false; } },
+      if(!firebase.apps || !firebase.apps.length) firebase.initializeApp(FIREBASE_CONFIG);
+      this.db=firebase.database(); this.ok=true; return true; }catch(e){ console.warn(e); return false; } },
   setRef(code){ 
-    if(!this.db){ try{ this.init(); }catch(e){} }
+    if(!this.db){ try{ this.init(); }catch(e){ console.warn('setRef init err', e); } }
+    this.code = code;
     if(this.ref){ try{ this.ref.off(); }catch(e){} } 
     this.ref = this.db ? this.db.ref('rooms/'+code) : null; 
+    if(!this.ref) console.warn('Net.setRef: ref null, db=', !!this.db);
   },
   async join(code){
     this.setRef(code); if(!this.ref){ console.warn('Net.join: ref null'); return null; } let role=null; const myName=Game.username||'Player';
@@ -609,8 +612,8 @@ const Net = {
     return res.committed?role:null;
   },
   cancelMatch(){ try{ if(!this.db) return; const uid=this.uid; this.db.ref('matchmaking/waiting').transaction(cur=> (cur && cur.uid===uid)?null:cur); this.db.ref('matchmaking/assign/'+uid).remove(); }catch(e){} },
-  on(path,cb){ if(!this.ref){ console.warn('Net.on: ref null', path); return; } this.ref.child(path).on('value',s=>cb(s.val())); },
-  set(path,val){ if(!this.ref){ console.warn('Net.set: ref null', path); return; } this.ref.child(path).set(val); },
+  on(path,cb){ if(!this.ref){ if(this.code){ try{ this.init(); this.setRef(this.code); }catch(e){} } else if(typeof Game!=='undefined' && Game.roomCode){ try{ this.init(); this.setRef(Game.roomCode); }catch(e){} } } if(!this.ref){ console.warn('Net.on: ref null', path); return; } this.ref.child(path).on('value',s=>cb(s.val())); },
+  set(path,val){ if(!this.ref){ if(this.code){ try{ this.init(); this.setRef(this.code); }catch(e){} } else if(typeof Game!=='undefined' && Game.roomCode){ try{ this.init(); this.setRef(Game.roomCode); }catch(e){} } } if(!this.ref){ console.warn('Net.set: ref null', path); return; } this.ref.child(path).set(val); },
   async findMatch(){
     if(!this.init()) return null;
     const uid=this.uid;
@@ -648,7 +651,7 @@ const __MENU_HTML__ = ($('card') && $('card').innerHTML) || '';
 
 /* ===== GAME LOGIC (fully fixed) ===== */
 const Game = {
-  me:null, online:false, S:null, lastEv:0, lastShot:0, started:false, vsShown:false, _afterBallLock:false, timeOfDay:'afternoon', envType:'city', roadType:'paved', hasRiver:false, roomCode:null, forfeitHandled:false, username:(function(){try{return localStorage.getItem('bgl_name')||'';}catch(e){return '';}})(), trophies:(function(){try{return Number(localStorage.getItem('bgl_trophies'))||0;}catch(e){return 0;}})(), rating:(function(){try{return Number(localStorage.getItem('bgl_rating'))||1000;}catch(e){return 1000;}})(), coins:(function(){try{return Number(localStorage.getItem('bgl_coins'))||0;}catch(e){return 0;}})(), items:(function(){try{const v=JSON.parse(localStorage.getItem('bgl_items')); return Array.isArray(v)?v:['bat_basic','jersey_basic','cap_basic'];}catch(e){return ['bat_basic','jersey_basic','cap_basic'];}})(), equipped:(function(){try{const v=JSON.parse(localStorage.getItem('bgl_equipped')); return (v&&typeof v==='object')?v:{bat:'bat_basic',jersey:'jersey_basic',cap:'cap_basic'};}catch(e){return {bat:'bat_basic',jersey:'jersey_basic',cap:'cap_basic'};}})(), skins:(function(){try{const v=JSON.parse(localStorage.getItem('bgl_skins')); return (Array.isArray(v)&&v.length)?v:['Classic'];}catch(e){return ['Classic'];}})(), skin:(function(){try{return localStorage.getItem('bgl_skin')||'Classic';}catch(e){return 'Classic';}})(), pNames:{},
+  me:null, online:false, S:null, lastEv:0, lastShot:0, started:false, vsShown:false, _afterBallLock:false, _matchId:0, timeOfDay:'afternoon', envType:'city', roadType:'paved', hasRiver:false, roomCode:null, forfeitHandled:false, username:(function(){try{return localStorage.getItem('bgl_name')||'';}catch(e){return '';}})(), trophies:(function(){try{return Number(localStorage.getItem('bgl_trophies'))||0;}catch(e){return 0;}})(), rating:(function(){try{return Number(localStorage.getItem('bgl_rating'))||1000;}catch(e){return 1000;}})(), coins:(function(){try{return Number(localStorage.getItem('bgl_coins'))||0;}catch(e){return 0;}})(), items:(function(){try{const v=JSON.parse(localStorage.getItem('bgl_items')); return Array.isArray(v)?v:['bat_basic','jersey_basic','cap_basic'];}catch(e){return ['bat_basic','jersey_basic','cap_basic'];}})(), equipped:(function(){try{const v=JSON.parse(localStorage.getItem('bgl_equipped')); return (v&&typeof v==='object')?v:{bat:'bat_basic',jersey:'jersey_basic',cap:'cap_basic'};}catch(e){return {bat:'bat_basic',jersey:'jersey_basic',cap:'cap_basic'};}})(), skins:(function(){try{const v=JSON.parse(localStorage.getItem('bgl_skins')); return (Array.isArray(v)&&v.length)?v:['Classic'];}catch(e){return ['Classic'];}})(), skin:(function(){try{return localStorage.getItem('bgl_skin')||'Classic';}catch(e){return 'Classic';}})(), pNames:{},
 
   fresh:()=>({inn:1,batter:'p1',balls:0,score:{p1:0,p2:0},over:false,ev:null,target:0,timeOfDay:Game.timeOfDay,envType:Game.envType,roadType:Game.roadType,hasRiver:Game.hasRiver}),
   setTime(t){ this.timeOfDay=t; if(typeof GFX!=='undefined' && GFX.scene) GFX.setTheme(t); },
@@ -662,10 +665,9 @@ const Game = {
     if(this._vsTimer){ clearTimeout(this._vsTimer); this._vsTimer=null; }
     if(this._winnerTimer){ clearTimeout(this._winnerTimer); this._winnerTimer=null; }
     if(this.online && Net.ref){ 
-      const _oldRef = Net.ref;
-      try{ _oldRef.off(); }catch(e){} 
-      try{ _oldRef.remove(); }catch(e){} 
-      if(Net.ref === _oldRef) Net.ref=null; 
+      try{ Net.ref.off(); }catch(e){} 
+      try{ Net.ref.remove(); }catch(e){} 
+      Net.ref=null; 
     } 
     this.S=null; this.started=false; this.online=false; this.roomCode=null; this.me=null; 
     this.pNames={}; this.lastEv=0; this.lastShot=0; this.forfeitHandled=false; 
@@ -706,6 +708,8 @@ const Game = {
     if(!role) return false;
     this.me=role; this.roomCode=code; this.forfeitHandled=false;
     if(!Net.ref) Net.setRef(code);
+    this._matchId++; const _myMatchId=this._matchId;
+    this._matchRef = Net.ref;
     if(Net.ref) try{ Net.ref.onDisconnect().remove(); }catch(e){}
     if(role==='p2') Net.set('players/p2',{name:Game.username||'Player'});
     if(role==='p1' && (typeof codeOrMatch!=='string')) Net.set('players/p1',{name:Game.username||'Player'});
@@ -851,8 +855,13 @@ const Game = {
       }catch(e){ console.warn("lobby error", e); }
 
       if(this.me==='p1' || !this.online){ 
-        this._winnerTimer = setTimeout(()=>{ 
+        const _mid = this._matchId;
+     const _refToClean = Net.ref;
+     this._winnerTimer = setTimeout(()=>{ 
           this._winnerTimer=null; 
+          if(this._matchId !== _mid) return;
+          try{ if(_refToClean){ _refToClean.off(); _refToClean.remove(); } }catch(e){}
+          if(Net.ref === _refToClean) Net.ref=null;
           try{ this.toMenu(); }catch(e){} 
         },4000); 
       }
