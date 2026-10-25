@@ -51,7 +51,7 @@ body.slow::after{background:radial-gradient(ellipse at center,transparent 32%,rg
   <div id="mid"><div id="inn">Inning 1</div><div id="dots"></div></div>
   <div class="team" id="t2"><b id="n2">P2</b><span id="s2">0</span></div>
 </div>
-<div id="emotes"></div><div id="shot"></div><div id="hint"></div><div id="pop"></div>
+<div id="emotes"></div><div id="shot"></div><div id="hint"></div><div id="pop"></div><button id="exitBtn" style="position:fixed;top:max(8px,env(safe-area-inset-top));right:8px;z-index:7;display:none;background:var(--mag);color:var(--cream);border:3px solid var(--road);border-radius:10px;padding:4px 10px;font-weight:800;cursor:pointer" onclick="Game.toMenu()">Exit ✕</button>
 <div id="rules">দেয়ালে সরাসরি = আউট &middot; এক পিচে = রান &middot; শাটারের উপর দিয়ে = ছক্কা</div>
 <div id="nameModal" style="position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.6);z-index:100"><div id="nameCard">
   <h1>বাংলাদেশ গলি লিগ</h1>
@@ -670,7 +670,8 @@ const Net = {
     if(v && v.uid===uid){
       return await new Promise(resolve=>{
         const r=this.db.ref('matchmaking/assign/'+uid);
-        r.on('value', s=>{ const a=s.val(); if(a&&a.code){ r.off(); resolve({code:a.code, role:a.role}); } });
+        const to=setTimeout(()=>{ try{r.off();}catch(e){} try{this.cancelMatch();}catch(e){} resolve(null); }, 30000);
+        r.on('value', s=>{ const a=s.val(); if(a&&a.code){ clearTimeout(to); try{r.off();}catch(e){} resolve({code:a.code, role:a.role}); } });
       });
     }
     const a=(await this.db.ref('matchmaking/assign/'+uid).once('value')).val();
@@ -702,7 +703,7 @@ const Game = {
       try{ Net.ref.remove(); }catch(e){} 
       Net.ref=null; 
     } 
-    this.S=null; this.started=false; this.online=false; this.roomCode=null; this.me=null; 
+    this.S=null; this.started=false; this.online=false; this.roomCode=null; this.me=null; try{ sessionStorage.removeItem('bgl_room'); }catch(e){} 
     this.pNames={}; this.lastEv=0; this.lastShot=0; this.forfeitHandled=false; 
     UI.lobby(true); 
     const __c=$('card'); 
@@ -723,7 +724,8 @@ const Game = {
   gearOf(pl){ if(!this.online) return this.equipped; return pl===this.me?this.equipped:((this.pEq&&this.pEq[pl])||null); },
   doEmote(k){ if(!this.S) return; const mine=this.online?this.me:this.S.batter; (this.S.batter===mine?GFX.batter:GFX.bowler).emote(k); if(this.online) Net.set('emote',{id:Date.now(),by:this.me,k}); },
   onEmote(e){ if(!e||e.id===this.lastEmote) return; this.lastEmote=e.id; if(e.by===this.me||!this.started||!this.S) return; (this.S.batter===e.by?GFX.batter:GFX.bowler).emote(e.k); },
-  startLocal(){ 
+  playAgain(){ if(this.online){ this.toMenu(); } else { this.startLocal(); } }, 
+  startLocal(){
     this.online=false; this.vsShown=false; this._afterBallLock=false; this.started=false; 
     this.timeOfDay=['morning','afternoon','evening'][Math.floor(Math.random()*3)]; 
     this.envType='city'; this.roadType='paved'; this.hasRiver=Math.random()<0.5; 
@@ -742,7 +744,7 @@ const Game = {
     if(typeof codeOrMatch==='string'){ code=codeOrMatch; if(!Net.init()) return false; role=await Net.join(code); }
     else { code=codeOrMatch.code; role=codeOrMatch.role; if(!Net.init()) return false; Net.setRef(code); }
     if(!role) return false;
-    this.me=role; this.roomCode=code; this.forfeitHandled=false;
+    this.me=role; this.roomCode=code; this.forfeitHandled=false; try{ sessionStorage.setItem('bgl_room', JSON.stringify({code,role:this.me})); }catch(e){}
     if(Net.ref) try{ Net.ref.onDisconnect().remove(); }catch(e){}
     if(role==='p2') Net.set('players/p2',{name:Game.username||'Player',eq:Game.equipped});
     if(role==='p1' && (typeof codeOrMatch!=='string')) Net.set('players/p1',{name:Game.username||'Player',eq:Game.equipped});
@@ -787,7 +789,7 @@ const Game = {
     return true;
   },
 
-  begin(){ GFX.setTheme(this.timeOfDay); UI.lobby(false); UI.hud(this.S,this.names()); this.started=true; this.nextBall(); },
+  begin(){ GFX.setTheme(this.timeOfDay); UI.lobby(false); UI.hud(this.S,this.names()); this.started=true; const eb=$('exitBtn'); if(eb) eb.style.display='block'; this.nextBall(); },
   canBat(){ return !this.S.over && (!this.online || this.S.batter===this.me); },
 
   nextBall(){
@@ -874,17 +876,19 @@ const Game = {
       const tod = this.timeOfDay==='morning'?'সকালের':this.timeOfDay==='evening'?'সন্ধ্যার':'বিকেলের';
       const env = this.envType==='village'?'গ্রামের মাঠ':'শহরের গলি';
       try{
-        if(winner){
-          const iAmWinner = !this.online || winner===this.me;
-          if(iAmWinner){ this.updateStats(true); this.unlockSkin(); this.saveSkins(); this.coins+=100; }
-          else { this.updateStats(false); this.coins+=20; }
-        } else { this.updateStats(null); this.coins+=30; }
-        this.saveCoins();
+        if(this.online){
+          if(winner){
+            const iAmWinner = winner===this.me;
+            if(iAmWinner){ this.updateStats(true); this.unlockSkin(); this.saveSkins(); this.coins+=100; }
+            else { this.updateStats(false); this.coins+=20; }
+          } else { this.updateStats(null); this.coins+=30; }
+          this.saveCoins();
+        }
       }catch(e){ console.warn('reward error', e); }
 
       UI.hint(''); 
       try{ 
-        UI.lobby(true,`<h1>${res}</h1><p style="font-size:18px;font-weight:800">${detail}</p><p style="opacity:.7;font-size:13px">${tod} · ${env}</p><button onclick="Game.toMenu()">Main Menu</button>`); 
+        UI.lobby(true,`<h1>${res}</h1><p style="font-size:18px;font-weight:800">${detail}</p><p style="opacity:.7;font-size:13px">${tod} · ${env}</p><button onclick="Game.playAgain()">Play Again</button><button onclick="Game.toMenu()">Main Menu</button>`); 
       }catch(e){ console.warn("lobby error", e); }
 
       if(this.me==='p1' || !this.online){ 
@@ -982,7 +986,7 @@ function loop(now){
   while(acc>=1/60){ Sim.step(1/60); acc-=1/60; }
   GFX.render(dt); requestAnimationFrame(loop);
 }
-Promise.race([document.fonts.load("800 34px 'Baloo Da 2'","\u0986"),new Promise(r=>setTimeout(r,2500))]).catch(()=>{}).then(()=>{ GFX.init(); Input.init(); ready=true; last=performance.now(); requestAnimationFrame(loop); });
+Promise.race([document.fonts.load("800 34px 'Baloo Da 2'","\u0986"),new Promise(r=>setTimeout(r,2500))]).catch(()=>{}).then(()=>{ GFX.init(); Input.init(); ready=true; last=performance.now(); requestAnimationFrame(loop); setTimeout(()=>{ try{ const v=sessionStorage.getItem('bgl_room'); if(v){ const o=JSON.parse(v); if(o&&o.code){ Game.startOnline(o.code).then(ok=>{ if(!ok) try{sessionStorage.removeItem('bgl_room');}catch(e){} }); } } }catch(e){} }, 800); });
 
 function showPanel(id){ ['menu','customPanel','storePanel','aboutPanel','searchPanel','leaderboardPanel'].forEach(p=>{const el=$(p); if(el) el.style.display = (p===id)?'block':'none';}); }
 function refreshStats(){ const s=$('stats'); if(s) s.textContent='Trophies: '+Game.trophies+' · Rating: '+Game.rating+' · Coins: '+Game.coins; const sc=$('storeCoins'); if(sc) sc.textContent='Coins: '+Game.coins; }
@@ -1062,7 +1066,7 @@ async function loadProfile(name){
 (function(){
   const nm=$('nameModal'); const uname=$('uname'); const bn=$('bName');
   const saved=Game.username;
-  if(saved){ nm.style.display='none'; const w=$('welcome'); if(w) w.textContent='Welcome, '+saved+'!'; refreshStats(); loadProfile(saved); }
+  if(saved){ nm.style.display='none'; const w=$('welcome'); if(w) w.textContent='Welcome, '+saved+'!'; refreshStats(); loadProfile(saved); if(typeof Net!=='undefined'){ try{ Net.init(); if(Net.db) Net.db.ref('usernames/'+saved).set(true); }catch(e){} } }
   else { nm.style.display='flex'; }
   bn.onclick=async()=>{ const v=uname.value.trim(); if(!v) return; try{
     if(typeof Net!=='undefined' && Net.db){
@@ -1093,7 +1097,7 @@ $('bBackLb').onclick=()=>{ showPanel('menu'); };
 $('mAbout').onclick=()=>{ showPanel('aboutPanel'); };
 $('bBackStore').onclick=()=>{ showPanel('menu'); };
 $('bBackAbout').onclick=()=>{ showPanel('menu'); };
-$('mExit').onclick=()=>{ Game.username=''; try{localStorage.removeItem('bgl_name');}catch(e){} Game.trophies=0; Game.rating=1000; Game.coins=0; Game.items=['bat_basic','jersey_basic','cap_basic']; Game.equipped={bat:'bat_basic',jersey:'jersey_basic',cap:'cap_basic'}; Game.skins=['Classic']; Game.skin='Classic'; Game.saveTrophies(); Game.saveCoins(); Game.saveItems(); Game.saveSkins(); try{localStorage.setItem('bgl_skin','Classic');}catch(e){} refreshStats(); const nm=$('nameModal'); if(nm) nm.style.display='flex'; const w=$('welcome'); if(w) w.textContent=''; };
+$('mExit').onclick=()=>{ if(Game.username && typeof Net!=='undefined' && Net.db) try{ Net.db.ref('usernames/'+Game.username).remove(); }catch(e){} Game.username=''; try{localStorage.removeItem('bgl_name');}catch(e){} Game.trophies=0; Game.rating=1000; Game.coins=0; Game.items=['bat_basic','jersey_basic','cap_basic']; Game.equipped={bat:'bat_basic',jersey:'jersey_basic',cap:'cap_basic'}; Game.skins=['Classic']; Game.skin='Classic'; Game.saveTrophies(); Game.saveCoins(); Game.saveItems(); Game.saveSkins(); try{localStorage.setItem('bgl_skin','Classic');}catch(e){} refreshStats(); const nm=$('nameModal'); if(nm) nm.style.display='flex'; const w=$('welcome'); if(w) w.textContent=''; };
 $('bOnline').onclick=async()=>{ if(!ready) return; Sfx.init();
   const code=$('room').value.trim().replace(/[^\w-]/g,''), msg=$('msg');
   if(!Net.init()){ msg.textContent='Firebase not configured.'; return; }
