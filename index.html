@@ -116,7 +116,7 @@ const FIREBASE_CONFIG = {
   appId: "1:1757763305:web:60971b6b571f1632618278",
   measurementId: "G-HLF7DK1R7R"
 };
-const CFG = { g:16, e:.6, R:.12, wallH:3, fieldX:7.5, farZ:-24, backZ:13, hitZ:[3,7], balls:6, hitPos:[0,1.1,5.2] };
+const CFG = { g:16, e:.6, R:.12, wallH:3, fieldX:7.5, farZ:-24, backZ:13, hitZ:[3,7], balls:6, hitPos:[0,1.1,5.2], stall:{x0:-7.5,x1:-5.1,z0:-14.8,z1:-12.4,h:2.6} };
 const TIMES = {
   morning:   { bg:0x9fd4f0, fog:0xcfe8f5, fogNear:40, fogFar:130, hemiSky:0xfff4d6, hemiGround:0x8a7a5a, hemiIntensity:.95, sunColor:0xfff4d6, sunIntensity:1.0, sunPos:[-10,12,8], exposure:1.05, sky:['#7ec8e3','#f4d9a8','#ffe7c2'] },
   afternoon: { bg:0xf6b26b, fog:0xf0c690, fogNear:45, fogFar:120, hemiSky:0xfff1cf, hemiGround:0x6b5a4a, hemiIntensity:.85, sunColor:0xfff1d0, sunIntensity:1.3, sunPos:[-8,16,6], exposure:1.1,  sky:['#5b9bd5','#f4d9a8','#f0b777'] },
@@ -165,7 +165,7 @@ const UI = {
   lobby(show, html){ $('lobby').style.display=show?'flex':'none'; if(html) $('card').innerHTML=html; }
 };
 
-/* ===== 3D FIGURES (low-poly, ragdoll-capable) ===== */
+/* ===== 3D FIGURES ===== */
 const _mc={}; const mat = c => _mc[c]||(_mc[c]=new THREE.MeshStandardMaterial({color:c, roughness:.85, metalness:0, flatShading:true}));
 const tex = c => { const t=new THREE.CanvasTexture(c); t.encoding=THREE.sRGBEncoding; return t; };
 function box(w,h,d,c,x,y,z,parent){ const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),mat(c)); m.position.set(x,y,z); (parent||GFX.scene).add(m); m.castShadow=true; m.receiveShadow=true; return m; }
@@ -193,7 +193,7 @@ const Sfx={ c:null,
     g.gain.setValueAtTime(v||.05,c.currentTime+t0); g.gain.exponentialRampToValueAtTime(.0001,c.currentTime+t0+d); o.connect(g); g.connect(c.destination); o.start(c.currentTime+t0); o.stop(c.currentTime+t0+d); },
   noise(d,v){ const c=this.c; if(!c) return; const b=c.createBuffer(1,c.sampleRate*d,c.sampleRate), x=b.getChannelData(0); for(let i=0;i<x.length;i++) x[i]=(Math.random()*2-1)*(1-i/x.length);
     const s=c.createBufferSource(), g=c.createGain(); g.gain.value=v; s.buffer=b; s.connect(g); g.connect(c.destination); s.start(); },
-  horn(){ if(Math.random()<.5){ this.tone(330,.35,'sawtooth',.03); this.tone(415,.35,'sawtooth',.03); } else [0,.12,.24].forEach(t=>this.tone(2200,.08,'sine',.04,t)); },   // bus horn / rickshaw bell
+  horn(){ if(Math.random()<.5){ this.tone(330,.35,'sawtooth',.03); this.tone(415,.35,'sawtooth',.03); } else [0,.12,.24].forEach(t=>this.tone(2200,.08,'sine',.04,t)); },
   hit(){ this.noise(.08,.4); this.tone(180,.1,'triangle',.2); }, cheer(){ this.noise(1.2,.12); }, out(){ this.tone(220,.25,'sawtooth',.08); this.tone(150,.4,'sawtooth',.08,.2); }
 };
 let SP=[];
@@ -212,12 +212,12 @@ function makeRickshaw(col){ const rk=new THREE.Group(), shirts=[0x1b9a5c,0x3d5a8
   box(.9,.45,1.3,col,0,.75,0,rk); box(.9,.08,1,0xffc93c,0,1.8,-.1,rk);
   { const pn=new THREE.Mesh(new THREE.PlaneGeometry(.8,.5),new THREE.MeshBasicMaterial({map:rickArt(),side:THREE.DoubleSide})); pn.position.set(0,1.1,.56); rk.add(pn); }
   [-.42,.42].forEach(sx=>{ box(.05,1,.05,0x333333,sx,1.3,.45,rk); box(.05,1,.05,0x333333,sx,1.3,-.3,rk); });
-  for(let i=0;i<9;i++) box(.07,.14,.02,[0xe4007c,0xffc93c,0x00a19b][i%3],-.4+i*.1,1.7,-.62,rk);          // hood fringe
-  box(.5,.12,.4,0x333333,0,1.0,.2,rk);                                                                 // passenger seat
+  for(let i=0;i<9;i++) box(.07,.14,.02,[0xe4007c,0xffc93c,0x00a19b][i%3],-.4+i*.1,1.7,-.62,rk);
+  box(.5,.12,.4,0x333333,0,1.0,.2,rk);
   box(.3,.1,.3,0x333333,0,1.0,-.82,rk); box(.32,.5,.22,shirts[Math.floor(Math.random()*4)],0,1.4,-.85,rk).rotation.x=-.2;
   const hd=new THREE.Mesh(new THREE.IcosahedronGeometry(.14,0),mat(0xd9a066)); hd.position.set(0,1.78,-.9); rk.add(hd);
-  [-.1,.1].forEach(x=>{ const l=box(.12,.55,.12,0xc9925a,x,.85,-1,rk); l.rotation.x=-.5; });          // driver legs on pedals
-  box(.04,.7,.04,0x333333,0,.65,-.92,rk); box(.7,.04,.04,0x333333,0,1.2,-1.02,rk);                     // fork + handlebar
+  [-.1,.1].forEach(x=>{ const l=box(.12,.55,.12,0xc9925a,x,.85,-1,rk); l.rotation.x=-.5; });
+  box(.04,.7,.04,0x333333,0,.65,-.92,rk); box(.7,.04,.04,0x333333,0,1.2,-1.02,rk);
   [-1,1].forEach(sd=>tyre(rk,sd*.5,.4,.3,.4,.06,'x')); tyre(rk,0,.3,-.9,.3,.06,'x'); return rk; }
 function makeBus(col){ const g=new THREE.Group();
   box(9,1.3,2.6,col,0,1.15,0,g); box(9,1.1,2.5,0x1d2a38,0,2.35,0,g); glass(g,9,.75,2.6,0,2.35,0);
@@ -238,7 +238,7 @@ function makeTruck(col){ const g=new THREE.Group();
 function makeCNG(){ const g=new THREE.Group();
   box(1.9,.6,1.2,0x2f9d4e,0,.75,0,g); box(1.5,.08,1.2,0x111111,-.1,1.85,0,g); box(.7,.5,1,0x2f9d4e,.7,1.05,0,g);
   [-.7,.65].forEach(x=>[-.58,.58].forEach(z=>box(.05,.95,.05,0x222222,x,1.35,z,g)));
-  for(let x=-.6;x<=.5;x+=.22) [-.6,.6].forEach(z=>box(.03,.7,.03,0x222222,x,1.35,z,g));          // wire cage
+  for(let x=-.6;x<=.5;x+=.22) [-.6,.6].forEach(z=>box(.03,.7,.03,0x222222,x,1.35,z,g));
   glass(g,.04,.7,1.1,.7,1.4,0); box(.5,.12,.9,0x333333,-.3,1,0,g);
   const dh=new THREE.Mesh(new THREE.IcosahedronGeometry(.12,0),mat(0xd9a066)); dh.position.set(.1,1.55,.2); g.add(dh); box(.25,.4,.2,0x3d5a80,.1,1.2,.2,g);
   lamp(g,0xfff3c2,.96,.85,0,.06,.2,.3); lamp(g,0xe02020,-.96,.85,.4,.06,.18,.2); lamp(g,0xe02020,-.96,.85,-.4,.06,.18,.2);
@@ -258,7 +258,6 @@ const CHAT={
 const SKINS=[0xd9a066,0xc68642,0xe0ac69,0x8d5524,0xf1c27d];
 const _A=new THREE.Vector3(),_B=new THREE.Vector3(),_C=new THREE.Vector3(),_D=new THREE.Vector3(),_E=new THREE.Vector3(),_H=new THREE.Vector3(),_T=new THREE.Vector3(),_Q1=new THREE.Quaternion(),_Q2=new THREE.Quaternion(),_DN=new THREE.Vector3(0,-1,0);
 const R_=Math.random;
-/* Jointed rig: hips > spine > (head, shoulders > elbows), hips > thighs > knees. Hands are placed by 2-bone IK. */
 class Figure {
   constructor(shirt, x, z, hasBat, face){
     const g=this.g=new THREE.Group(); g.position.set(x,0,z); GFX.scene.add(g);
@@ -372,7 +371,6 @@ const GFX = {
     gr.addColorStop(0,t.sky[0]); gr.addColorStop(.55,t.sky[1]); gr.addColorStop(1,t.sky[2]); x.fillStyle=gr; x.fillRect(0,0,2,256);
     if(this.sky.material.map) this.sky.material.map.dispose();
     this.sky.material.map=tex(c); this.sky.material.needsUpdate=true;
-    // lamps on at evening
     const lampOn = name==='evening';
     if(this.lamps) this.lamps.forEach(m=>{ m.material.emissiveIntensity = lampOn?2.5:0; });
     if(this.lampLights) this.lampLights.forEach(l=>{ l.intensity = lampOn?1.6:0; });
@@ -395,11 +393,10 @@ const GFX = {
     const mr=new THREE.Mesh(new THREE.PlaneGeometry(140,14),new THREE.MeshStandardMaterial({map:at2,roughness:1})); mr.rotation.x=-Math.PI/2; mr.position.set(0,0,-36); mr.receiveShadow=true; S.add(mr);
     for(let x=-60;x<60;x+=6) box(2.5,.02,.15,0xeeeeee,x,.02,-36.7);
     for(let z=-22;z<12;z+=4){ box(.15,.02,1.6,0xeeeeee,-5.2,.02,z); box(.15,.02,1.6,0xeeeeee,5.2,.02,z); }
-    box(2.6,.04,16,0xc9a36b,0,.02,0); // taped short pitch in the middle of the road
+    box(2.6,.04,16,0xc9a36b,0,.02,0);
     this.wk=[]; [-7.6,7.6].forEach(z=>[-.2,0,.2].forEach(o=>{ const st=box(.06,.9,.06,0xfff4d6,o,.45,z); if(z>0){ st.userData.home=st.position.clone(); this.wk.push(st); } }));
     [-.1,.1].forEach(o=>{ const bl=box(.2,.04,.04,0xffc93c,o,.92,7.6); bl.userData.home=bl.position.clone(); this.wk.push(bl); });
     box(3,.02,.06,0xffffff,0,.05,6.4); box(3,.02,.06,0xffffff,0,.05,-6.4);
-    // --- facade textures: one floor tile (windows, sill, AC), repeated up the building
     const facade=col=>{ const c=document.createElement('canvas'); c.width=128; c.height=96; const x=c.getContext('2d');
       x.fillStyle=col; x.fillRect(0,0,128,96); x.fillStyle='rgba(0,0,0,.14)'; x.fillRect(0,88,128,8);
       for(let i=0;i<2;i++){ x.fillStyle=Math.random()<.35?'#ffd877':'#2b3a47'; x.fillRect(14+i*58,16,38,48);
@@ -413,20 +410,18 @@ const GFX = {
     const bld=(w,H,d,x,z,i)=>{ const t=facades[i%6].clone(); t.needsUpdate=true; t.repeat.set(Math.max(1,Math.round(w/3)),Math.round(H/3));
       const m=new THREE.Mesh(new THREE.BoxGeometry(w,H,d),new THREE.MeshStandardMaterial({map:t,roughness:.9})); m.position.set(x,H/2,z); m.castShadow=m.receiveShadow=true; S.add(m); return m; };
     if(envType==='city'){
-    // --- two rows of Dhaka buildings with shop shutters (= the boundary wall) along both sides of the road
     const signs=['বাপের হোটেল','মিষ্টি ঘর','স্টার কাবাব','মোবাইল বাজার','ঢাকা ফার্মেসি','বিরিয়ানি হাউস','চা কর্নার','ফ্রেশ জুস'];
     const shut=[0x2f7d6d,0xb5483a,0x3d5a80,0x8a5a2b,0x6b4c8a]; let n=0;
     [-1,1].forEach(s=>{ for(let i=0;i<7;i++){ const z=11-i*6.2, fl=4+Math.floor(Math.random()*5), H=3+fl*3;
       bld(6,H,6.2,s*11,z,i+(s>0?2:0));
       box(.5,CFG.wallH,6.2,shut[(i+n)%5],s*7.75,CFG.wallH/2,z);
       const sg=label(signs[n++%signs.length],'#'+['e4007c','00a19b','b5483a','2b2a33'][n%4]+'',3.2,.8); sg.position.set(s*7.48,2.3,z); sg.rotation.y=-s*Math.PI/2; S.add(sg);
-      for(let f=1;f<fl;f+=2){ const bz=z+rnd(-1,1), by=3+f*3-.4; box(.9,.12,2.4,0x8b8b8b,s*7.6,by,bz); if(Math.random()<.7){ const sp=makeSpec(); sp.position.set(s*7.6,by+.06,bz+rnd(-.7,.7)); sp.userData.y0=sp.position.y; S.add(sp); this.crowd.push(sp); } }        // balconies
-      for(let f=2;f<fl;f+=2) box(.5,.4,.6,0xeeeeee,s*7.7,3+f*3,z+rnd(-2,2));              // AC units
+      for(let f=1;f<fl;f+=2){ const bz=z+rnd(-1,1), by=3+f*3-.4; box(.9,.12,2.4,0x8b8b8b,s*7.6,by,bz); if(Math.random()<.7){ const sp=makeSpec(); sp.position.set(s*7.6,by+.06,bz+rnd(-.7,.7)); sp.userData.y0=sp.position.y; S.add(sp); this.crowd.push(sp); } }
+      for(let f=2;f<fl;f+=2) box(.5,.4,.6,0xeeeeee,s*7.7,3+f*3,z+rnd(-2,2));
       box(1.2,1,1.2,0x3b6ea5,s*11,H+.5,z);
-      if(i===1||i===4){ const bf=makeFlag(2.4); bf.position.set(s*7.96,6.5,z+rnd(-1,1)); bf.rotation.y=-s*Math.PI/2; S.add(bf); }                                                // roof water tank
+      if(i===1||i===4){ const bf=makeFlag(2.4); bf.position.set(s*7.96,6.5,z+rnd(-1,1)); bf.rotation.y=-s*Math.PI/2; S.add(bf); }
     }});
     } else {
-    // --- village: huts, trees, muddy road feel ---
     for(let i=0;i<6;i++){ const z=8-i*5.5; const x=(i%2===0)?-9:9;
       box(5,3,5,0x8a6a3a,x,1.5,z);
       box(5.2,1.2,5.2,0x6a4a2a,x,3.6,z);
@@ -435,7 +430,6 @@ const GFX = {
     if(hasRiver){ const rw=new THREE.Mesh(new THREE.PlaneGeometry(14,52),new THREE.MeshStandardMaterial({color:0x1a6a9a,roughness:.2,metalness:.1,transparent:true,opacity:.85})); rw.rotation.x=-Math.PI/2; rw.position.set(-16,0,-4); S.add(rw); }
     }
     if(hasRiver && envType==='city'){ const rw=new THREE.Mesh(new THREE.PlaneGeometry(14,52),new THREE.MeshStandardMaterial({color:0x1a6a9a,roughness:.2,metalness:.1,transparent:true,opacity:.85})); rw.rotation.x=-Math.PI/2; rw.position.set(16,0,-4); S.add(rw); }
-    // far end: low brick base + iron railing, with a busy main road (bus / truck / CNG / rickshaw) behind it
     box(16,1.2,.5,0xd98c6c,0,.6,CFG.farZ-.25); box(16,.08,.1,0x2b2a33,0,3,CFG.farZ-.25);
     for(let i=0;i<=20;i++) box(.06,1.8,.06,0x2b2a33,-8+i*.8,2.1,CFG.farZ-.25);
     for(let i=0;i<16;i++){ const H=(i>=6&&i<=9)?16+rnd(0,6):rnd(10,24), x=-46.5+i*6.2; bld(6,H,6,x,-49,i);
@@ -444,27 +438,24 @@ const GFX = {
     [-1,1].forEach(s=>{ for(let i=0;i<6;i++) bld(6,rnd(10,22),6,s*(17+i*6.2),-26.5,i+3); });
     const bb=label(envType==='village'?'গ্রামের মাঠ':'শহরের গলি','#e4007c',10,2.2); bb.position.set(0,9,-45.9); S.add(bb); this.placeLabel=bb;
     box(16,CFG.wallH,.5,0xd98c6c,0,CFG.wallH/2,CFG.backZ+.25);
-    // overhead wires
     const wm=new THREE.LineBasicMaterial({color:0x222222});
     [[-4,9],[-12,10.5],[-19,8.5],[2,11]].forEach(([z,y])=>{ const pts=[]; for(let k=0;k<=8;k++){ const u=k/8; pts.push(new THREE.Vector3(-8+u*16,y-Math.sin(u*Math.PI)*.9,z)); }
       S.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts),wm)); if(z!==2) for(let k=1;k<16;k++){ const u=k/16, f=new THREE.Mesh(new THREE.CircleGeometry(.3,3),FM[k%4]); f.position.set(-8+u*16,y-Math.sin(u*Math.PI)*.9-.25,z); f.rotation.z=-Math.PI/2; S.add(f); } });
-    // street lamps
-this.lamps=[]; this.lampLights=[];
+    this.lamps=[]; this.lampLights=[];
     [[-1,-9],[1,3],[1,-16]].forEach(([s,z])=>{ const p=new THREE.Mesh(new THREE.CylinderGeometry(.05,.08,5,6),mat(0x555555)); p.position.set(s*7.15,2.5,z); S.add(p);
       const headMat=new THREE.MeshStandardMaterial({color:0xfff2a8, emissive:0xfff2a8, emissiveIntensity:0, roughness:.4});
       const head=new THREE.Mesh(new THREE.BoxGeometry(.5,.15,.25),headMat); head.position.set(s*6.9,5,z); S.add(head);
       const pl=new THREE.PointLight(0xffe08a,0,18); pl.position.set(s*6.9,5,z); S.add(pl);
       this.lamps.push(head); this.lampLights.push(pl); });
     const rk=makeRickshaw(0xe4007c); rk.position.set(5.6,0,-20); rk.rotation.y=-.4; S.add(rk);
-    // tea stall (left kerb)
     box(2.4,1.1,2.2,0x8a5a2b,-6.3,.55,-13.6); box(2.8,.15,2.6,0x00a19b,-6.3,2.4,-13.6).rotation.z=.08;
     [-1,1].forEach(s=>box(.1,1.4,.1,0x4d3a22,-6.3+s*1.2,1.8,-12.5));
     const k=new THREE.Mesh(new THREE.CylinderGeometry(.22,.3,.45,6),mat(0xbbbbbb)); k.position.set(-6.8,1.3,-13.6); S.add(k);
     box(.5,.4,.5,0xe4007c,-4.7,.2,-12.4);
     const cs=label('চা-এর দোকান','#e4007c',2.4,.8); cs.position.set(-6.3,3.1,-12.45); S.add(cs);
-    for(let i=0;i<5;i++) box(.08,.35,.08,0xf4d03f,-7+i*.12,2.15,-12.5).rotation.z=.2;                       // hanging bananas
-    [-.7,0,.7].forEach(o=>{ const j=new THREE.Mesh(new THREE.CylinderGeometry(.15,.15,.3,8),mat(0xdde8ee)); j.position.set(-6.3+o,1.25,-12.7); S.add(j); });   // biscuit jars
-    const ct=new THREE.Group(); ct.position.set(-6.4,0,-18.5); S.add(ct); box(1.6,.9,1,0xe9c46a,0,.9,0,ct);                                         // jhalmuri cart
+    for(let i=0;i<5;i++) box(.08,.35,.08,0xf4d03f,-7+i*.12,2.15,-12.5).rotation.z=.2;
+    [-.7,0,.7].forEach(o=>{ const j=new THREE.Mesh(new THREE.CylinderGeometry(.15,.15,.3,8),mat(0xdde8ee)); j.position.set(-6.3+o,1.25,-12.7); S.add(j); });
+    const ct=new THREE.Group(); ct.position.set(-6.4,0,-18.5); S.add(ct); box(1.6,.9,1,0xe9c46a,0,.9,0,ct);
     [-.6,.6].forEach(x=>{ const w=new THREE.Mesh(new THREE.CylinderGeometry(.35,.35,.1,10),mat(0x222222)); w.rotation.z=Math.PI/2; w.position.set(x,.35,0); ct.add(w); });
     box(.06,1.6,.06,0x555555,0,1.9,0,ct); const um=new THREE.Mesh(new THREE.ConeGeometry(1.4,.55,8),mat(0xe4007c)); um.position.set(0,2.8,0); ct.add(um);
     const cl=plank('ঝালমুড়ি','#006a4e',1.4,.5); cl.position.set(0,1.15,.52); ct.add(cl);
@@ -532,7 +523,7 @@ this.lamps=[]; this.lampLights=[];
       g.position.set(-55+Math.random()*110,0,z); g.rotation.y=rick?(dir>0?-Math.PI/2:Math.PI/2):(dir>0?0:Math.PI);
       this.scene.add(g); this.traffic.push({g,v:dir*(rick?3+Math.random()*2:6+Math.random()*5)}); }
   },
-  smash(p){ // ball hits an upper-floor window: crack decal + flying glass
+  smash(p){
     if(p.z<CFG.farZ||p.z>CFG.backZ-1) return; const sx=p.x>0?1:-1, y=Math.max(3.6,Math.min(p.y,10));
     if(!this.crackTex){ const c=document.createElement('canvas'); c.width=64; c.height=80; const x=c.getContext('2d'); x.fillStyle='rgba(15,25,35,.92)'; x.fillRect(0,0,64,80);
       x.strokeStyle='#e8f6ff'; x.lineWidth=1.5; for(let i=0;i<9;i++){ x.beginPath(); x.moveTo(32,40); x.lineTo(32+Math.cos(i*.7)*45,40+Math.sin(i*.7)*55); x.stroke(); }
@@ -574,7 +565,7 @@ this.lamps=[]; this.lampLights=[];
   }
 };
 
-/* ===== PHYSICS (deterministic fixed-step so both clients replay the same shot) ===== */
+/* ===== PHYSICS ===== */
 const Sim = {
   pos:new THREE.Vector3(0,-5,0), v:new THREE.Vector3(), mode:'idle', bounces:0, onEnd:null,
   bowl(){ this.pos.set((Math.random()-.5)*.6,1.8,-7.5); this.v.set((Math.random()-.5)*.5,3,11+Math.random()*3); this.mode='bowl'; this.bounces=0; },
@@ -591,7 +582,7 @@ const Sim = {
     if(p.y<=CFG.R){ p.y=CFG.R; if(Math.abs(v.y)>1.5){ if(this.mode==='fly') this.bounces++; v.y=-v.y*CFG.e; v.x*=.9; v.z*=.9; } else { v.y=0; v.x*=.97; v.z*=.97; } }
     if(this.mode==='bowl'){ if(p.z>7.4) this.end(Math.abs(p.x)<.55&&p.y<.95?'bowled':'miss'); return; }
     if(p.z<CFG.farZ||p.z>CFG.backZ||Math.abs(p.x)>CFG.fieldX) return this.wall();
-    const s=CFG.stall; if(p.x>s.x0&&p.x<s.x1&&p.z>s.z0&&p.z<s.z1&&p.y<s.h) return this.bounces===0?this.end('stall'):this.end('pitch');
+    const s=CFG.stall; if(s && p.x>s.x0&&p.x<s.x1&&p.z>s.z0&&p.z<s.z1&&p.y<s.h) return this.bounces===0?this.end('stall'):this.end('pitch');
     if(p.y<=CFG.R+.01 && v.length()<1.2) this.end('settle');
   }
 };
@@ -602,17 +593,21 @@ const Net = {
   init(){ if(this.ok) return true;
     try{ if(!window.firebase||FIREBASE_CONFIG.apiKey.startsWith('YOUR')) return false;
       firebase.initializeApp(FIREBASE_CONFIG); this.db=firebase.database(); this.ok=true; return true; }catch(e){ console.warn(e); return false; } },
-  setRef(code){ this.ref=this.db.ref('rooms/'+code); },
+  setRef(code){ 
+    if(this.ref){ try{ this.ref.off(); }catch(e){} } 
+    this.ref=this.db.ref('rooms/'+code); 
+  },
   async join(code){
     this.setRef(code); let role=null; const myName=Game.username||'Player';
     const res=await this.ref.child('players').transaction(cur=>{ role=null;
       if(!cur){ role='p1'; return {p1:{name:myName}}; }
-      if(cur.p1 && cur.p1.name===myName){ return cur; } // own room
+      if(cur.p1 && cur.p1.name===myName){ if(!cur.p2){ role='p1'; return cur; } return cur; }
       if(!cur.p2){ role='p2'; return {...cur,p2:{name:myName}}; }
       return cur;
     });
     return res.committed?role:null;
   },
+  cancelMatch(){ try{ if(!this.db) return; const uid=this.uid; this.db.ref('matchmaking/waiting').transaction(cur=> (cur && cur.uid===uid)?null:cur); this.db.ref('matchmaking/assign/'+uid).remove(); }catch(e){} },
   on(path,cb){ this.ref.child(path).on('value',s=>cb(s.val())); },
   set(path,val){ this.ref.child(path).set(val); },
   async findMatch(){
@@ -648,26 +643,61 @@ const Net = {
   }
 };
 
-/* ===== GAME LOGIC ===== */
+const __MENU_HTML__ = ($('card') && $('card').innerHTML) || '';
+
+/* ===== GAME LOGIC (fully fixed) ===== */
 const Game = {
-  me:null, online:false, S:null, lastEv:0, lastShot:0, started:false, vsShown:false, timeOfDay:'afternoon', envType:'city', roadType:'paved', hasRiver:false, roomCode:null, forfeitHandled:false, username:(function(){try{return localStorage.getItem('bgl_name')||'';}catch(e){return '';}})(), pNames:{},
+  me:null, online:false, S:null, lastEv:0, lastShot:0, started:false, vsShown:false, _afterBallLock:false, timeOfDay:'afternoon', envType:'city', roadType:'paved', hasRiver:false, roomCode:null, forfeitHandled:false, username:(function(){try{return localStorage.getItem('bgl_name')||'';}catch(e){return '';}})(), trophies:(function(){try{return Number(localStorage.getItem('bgl_trophies'))||0;}catch(e){return 0;}})(), rating:(function(){try{return Number(localStorage.getItem('bgl_rating'))||1000;}catch(e){return 1000;}})(), coins:(function(){try{return Number(localStorage.getItem('bgl_coins'))||0;}catch(e){return 0;}})(), items:(function(){try{const v=JSON.parse(localStorage.getItem('bgl_items')); return Array.isArray(v)?v:['bat_basic','jersey_basic','cap_basic'];}catch(e){return ['bat_basic','jersey_basic','cap_basic'];}})(), equipped:(function(){try{const v=JSON.parse(localStorage.getItem('bgl_equipped')); return (v&&typeof v==='object')?v:{bat:'bat_basic',jersey:'jersey_basic',cap:'cap_basic'};}catch(e){return {bat:'bat_basic',jersey:'jersey_basic',cap:'cap_basic'};}})(), skins:(function(){try{const v=JSON.parse(localStorage.getItem('bgl_skins')); return (Array.isArray(v)&&v.length)?v:['Classic'];}catch(e){return ['Classic'];}})(), skin:(function(){try{return localStorage.getItem('bgl_skin')||'Classic';}catch(e){return 'Classic';}})(), pNames:{},
+
   fresh:()=>({inn:1,batter:'p1',balls:0,score:{p1:0,p2:0},over:false,ev:null,target:0,timeOfDay:Game.timeOfDay,envType:Game.envType,roadType:Game.roadType,hasRiver:Game.hasRiver}),
   setTime(t){ this.timeOfDay=t; if(typeof GFX!=='undefined' && GFX.scene) GFX.setTheme(t); },
   setEnv(type,road,river){ this.envType=type; this.roadType=road; this.hasRiver=river; if(typeof GFX!=='undefined' && GFX.scene) GFX.rebuildScene(); },
   names(){ if(!this.online) return {p1:'Player 1',p2:'Player 2'};
     const pn=this.pNames||{};
-    return {p1: this.me==='p1' ? (pn.p1||'You') : (pn.p1||'Opp'), p2: this.me==='p2' ? (pn.p2||'You') : (pn.p2||'Opp') }; },
-  toMenu(){ this.vsShown=false; if(this.online && Net.ref){ try{ Net.ref.off(); }catch(e){} try{ Net.ref.remove(); }catch(e){} Net.ref=null; } this.S=null; this.started=false; this.online=false; this.roomCode=null; UI.lobby(true); if(typeof showPanel==='function') showPanel('menu'); const eb=$('exitBtn'); if(eb) eb.style.display='none'; this.saveTrophies(); },
+    return {p1: this.me==='p1' ? (pn.p1||'You') : (pn.p1||'Opp'), p2: this.me==='p2' ? (pn.p2||'You') : (pn.p2||'Opp')}; },
+
+  toMenu(){ 
+    this.vsShown=false; this._afterBallLock=false; 
+    if(this._vsTimer){ clearTimeout(this._vsTimer); this._vsTimer=null; }
+    if(this._winnerTimer){ clearTimeout(this._winnerTimer); this._winnerTimer=null; }
+    if(this.online && Net.ref){ 
+      try{ Net.ref.off(); }catch(e){} 
+      try{ Net.ref.remove(); }catch(e){} 
+      Net.ref=null; 
+    } 
+    this.S=null; this.started=false; this.online=false; this.roomCode=null; this.me=null; 
+    this.pNames={}; this.lastEv=0; this.lastShot=0; this.forfeitHandled=false; 
+    UI.lobby(true); 
+    const __c=$('card'); 
+    if(__c && !__c.querySelector('#menu') && __MENU_HTML__) __c.innerHTML=__MENU_HTML__; 
+    if(typeof showPanel==='function') showPanel('menu'); 
+    const eb=$('exitBtn'); if(eb) eb.style.display='none'; 
+    this.saveTrophies(); 
+  },
+
   saveTrophies(){ try{ localStorage.setItem('bgl_trophies', String(this.trophies)); localStorage.setItem('bgl_rating', String(this.rating)); }catch(e){} },
   saveSkins(){ try{ localStorage.setItem('bgl_skins', JSON.stringify(this.skins)); }catch(e){} },
   unlockSkin(){ if(!Array.isArray(this.skins)) this.skins=['Classic']; if(!this.skins.includes('Champion')) this.skins.push('Champion'); this.skin=this.skins[this.skins.length-1]; try{localStorage.setItem('bgl_skin',this.skin);}catch(e){} this.saveSkins(); },
   saveCoins(){ try{ localStorage.setItem('bgl_coins', String(this.coins)); }catch(e){} },
   saveItems(){ try{ localStorage.setItem('bgl_items', JSON.stringify(this.items)); localStorage.setItem('bgl_equipped', JSON.stringify(this.equipped)); }catch(e){} },
   updateStats(win){ if(win===true){ this.trophies+=1; this.rating+=100; } else if(win===false){ this.rating=Math.max(0,this.rating-70); } else { this.rating+=15; } this.saveTrophies(); this.syncLeaderboard(); },
-  syncLeaderboard(){ try{ if(typeof Net!=='undefined' && Net.db){ const prof={name:Game.username||'Player', trophies:Game.trophies, rating:Game.rating, coins:Game.coins, items:Game.items, equipped:Game.equipped, skins:Game.skins, skin:Game.skin}; Net.db.ref('leaderboard/'+(Game.username||'Player')).set({name:Game.username||'Player', trophies:Game.trophies, rating:Game.rating}); Net.db.ref('users/'+(Game.username||'Player')).set(prof); } }catch(e){} },
-  startLocal(){ this.online=false; this.timeOfDay=['morning','afternoon','evening'][Math.floor(Math.random()*3)]; this.envType='city'; this.roadType='paved'; this.hasRiver=Math.random()<0.5; this.S=this.fresh(); GFX.rebuildScene(); this.begin(); },
+  syncLeaderboard(){ try{ if(typeof Net!=='undefined' && Net.db){ const prof={name:Game.username||'Player', trophies:Game.trophies, rating:Game.rating, coins:Game.coins, items:Game.items, equipped:Game.equipped, skins:Game.skins, skin:Game.skin}; Net.db.ref('leaderboard/'+(Game.username||'Player')).set({name:Game.username||'Player', trophies:Game.trophies, rating:Game.rating}).catch(e=>console.warn('LB sync err',e)); Net.db.ref('users/'+(Game.username||'Player')).set(prof).catch(e=>console.warn('Profile sync err',e)); } }catch(e){ console.warn('syncLeaderboard',e); } },
+
+  startLocal(){ 
+    this.online=false; this.vsShown=false; this._afterBallLock=false; this.started=false; 
+    this.timeOfDay=['morning','afternoon','evening'][Math.floor(Math.random()*3)]; 
+    this.envType='city'; this.roadType='paved'; this.hasRiver=Math.random()<0.5; 
+    this.S=this.fresh(); GFX.rebuildScene(); this.begin(); 
+  },
+
   async startOnline(codeOrMatch){
-    this.online=true; this.timeOfDay=['morning','afternoon','evening'][Math.floor(Math.random()*3)]; this.envType='city'; this.roadType='paved'; this.hasRiver=Math.random()<0.5;
+    this.online=true; 
+    this.timeOfDay=['morning','afternoon','evening'][Math.floor(Math.random()*3)]; 
+    this.envType='city'; this.roadType='paved'; this.hasRiver=Math.random()<0.5;
+    this.S = null; this.started = false; this.vsShown = false; this._afterBallLock = false; 
+    if(this._vsTimer){ clearTimeout(this._vsTimer); this._vsTimer=null; }
+    if(this._winnerTimer){ clearTimeout(this._winnerTimer); this._winnerTimer=null; }
+    this.pNames={}; this.lastEv=0; this.lastShot=0; this.forfeitHandled=false;
     let code, role;
     if(typeof codeOrMatch==='string'){ code=codeOrMatch; if(!Net.init()) return false; role=await Net.join(code); }
     else { code=codeOrMatch.code; role=codeOrMatch.role; if(!Net.init()) return false; Net.setRef(code); }
@@ -676,19 +706,64 @@ const Game = {
     if(Net.ref) try{ Net.ref.onDisconnect().remove(); }catch(e){}
     if(role==='p2') Net.set('players/p2',{name:Game.username||'Player'});
     if(role==='p1' && (typeof codeOrMatch!=='string')) Net.set('players/p1',{name:Game.username||'Player'});
-    Net.on('players',pl=>{ if(pl){ Game.pNames={p1:(pl.p1&&pl.p1.name)||'', p2:(pl.p2&&pl.p2.name)||''}; }
-      if(pl&&pl.p1&&pl.p2&&this.me==='p1'&&!this.S){ this.S=this.fresh(); Net.set('state',this.S); } });
-    Net.on('state',s=>this.onState(s)); Net.on('shot',sh=>this.onShot(sh));
-    UI.lobby(false); UI.hint(this.me==='p1'?'Waiting for opponent...':'Joined! Waiting for host...'); return true;
+
+    Net.on('players', pl=>{ 
+      if(pl){ Game.pNames={p1:(pl.p1&&pl.p1.name)||'', p2:(pl.p2&&pl.p2.name)||''}; }
+      if(pl && pl.p1 && pl.p2){
+        if(!this.vsShown){
+          this.vsShown=true; 
+          const n=this.names(); 
+          try{ UI.lobby(true, '<h1 style="font-size:42px;margin:10px 0">'+n.p1+'  ⚔️  '+n.p2+'</h1><p style="font-size:18px;opacity:.8">Match starting...</p>'); }catch(e){ console.warn('lobby VS',e); }
+          this._vsTimer=setTimeout(()=>{ 
+            this._vsTimer=null; 
+            const tryStart=()=>{ 
+              if(!this.online) return; 
+              if(!this.S){ setTimeout(tryStart,200); return; } 
+              this.started=true; 
+              try{ UI.lobby(false); }catch(e){} 
+              try{ GFX.rebuildScene(); }catch(e){ console.warn('rebuildScene',e); } 
+              try{ GFX.setTheme(this.timeOfDay); }catch(e){} 
+              try{ GFX.batter.reset(); }catch(e){ console.warn('batter reset',e); } 
+              try{ this.nextBall(); }catch(e){ console.warn('nextBall',e); } 
+              try{ UI.hud(this.S,this.names()); }catch(e){} 
+            }; 
+            tryStart(); 
+          }, 2000); 
+        }
+        if(this.me==='p1' && !this.S){ 
+          this.S=this.fresh(); 
+          Net.set('state',this.S); 
+        }
+      }
+      if(this.me==='p2' && this.online && !this.started && !this.S && (!pl || !pl.p1)){ 
+        try{ this.toMenu(); }catch(e){} 
+      } 
+    });
+
+    Net.on('state', s=>this.onState(s)); 
+    Net.on('shot', sh=>this.onShot(sh));
+
+    UI.hint(this.me==='p1'?'Waiting for opponent...':'Joined! Waiting for host...'); 
+    return true;
   },
+
   begin(){ GFX.setTheme(this.timeOfDay); UI.lobby(false); UI.hud(this.S,this.names()); this.started=true; this.nextBall(); },
   canBat(){ return !this.S.over && (!this.online || this.S.batter===this.me); },
+
   nextBall(){
     if(!this.S) return;
-    if(this.S.over) return; GFX.batter.reset(); GFX.resetStumps(); UI.hud(this.S,this.names());
+    if(this.S.over) return; 
+    GFX.batter.reset(); GFX.resetStumps(); UI.hud(this.S,this.names());
     if(!this.canBat()){ UI.hint('প্রতিপক্ষ ব্যাট করছে...'); return; }
-    UI.hint('বোলার রেডি...'); setTimeout(()=>GFX.bowler.runUp(),800); setTimeout(()=>{ Sim.onEnd=k=>this.resolve(k); Sim.bowl(); UI.hint('সোয়াইপ করে মারো!'); },1300);
+    UI.hint('বোলার রেডি...'); 
+    setTimeout(()=>GFX.bowler.runUp(),800); 
+    setTimeout(()=>{ 
+      Sim.onEnd=k=>this.resolve(k); 
+      Sim.bowl(); 
+      UI.hint('সোয়াইপ করে মারো!'); 
+    },1300);
   },
+
   classify(a,p,l,len){
     const A=Math.abs(a), d=Math.max(-1,Math.min(1,a/.9)), o=(name,s,o2)=>Object.assign({name,a,p,l,m:1,s,d},o2);
     if(len<110) return o('Defensive Block','defend',{p:.3,l:0,m:.4});
@@ -697,6 +772,7 @@ const Game = {
     if(a>0) return A<.8?o('Cover Drive','drive'):o('Square Cut','cut',{l:l*.5});
     return A<.8?o('On Drive','drive'):o('Pull Shot','pull',{l:Math.max(l,.75)});
   },
+
   swipe(dx,dy,len){
     if(!this.started||!this.canBat()||!Sim.canHit()) return;
     const angle=Math.max(-1.25,Math.min(1.25,Math.atan2(dx,Math.max(-dy,len*.2)))), power=Math.max(.15,Math.min(1,len/380)), lift=Math.max(0,Math.min(1,-dy/len));
@@ -704,24 +780,39 @@ const Game = {
     if(this.online) Net.set('shot',{id:Date.now(),by:this.me,a:sh.a,p:sh.p,l:sh.l,m:sh.m,s:sh.s,d:sh.d,n:sh.name});
     Sim.hit(sh.a,sh.p,sh.l,sh.m,sh.s,sh.d);
   },
-  onShot(sh){ if(!sh||sh.id===this.lastShot) return; this.lastShot=sh.id; if(sh.by===this.me) return; Sim.onEnd=null; Sim.hit(sh.a,sh.p,sh.l,sh.m,sh.s,sh.d); UI.shot(sh.n); },
+
+  onShot(sh){ 
+    if(!sh||sh.id===this.lastShot) return; 
+    this.lastShot=sh.id; 
+    if(sh.by===this.me) return; 
+    Sim.onEnd=null; 
+    Sim.hit(sh.a,sh.p,sh.l,sh.m,sh.s,sh.d); 
+    UI.shot(sh.n); 
+  },
+
   resolve(kind){
     const d=Math.hypot(Sim.pos.x,Sim.pos.z-5), S=this.S, out=OUTS.includes(kind);
     const runs={six:6,four:4,pitch:1,settle:d>9?2:1}[kind]||0;
     S.score[S.batter]+=runs; S.balls++;
     if(out||S.balls>=CFG.balls){
-      if(S.inn===1){ S.target=S.score[S.batter]+1; S.inn=2; S.batter=S.batter==='p1'?'p2':'p1'; S.balls=0; } else S.over=true;
+      if(S.inn===1){ S.target=S.score[S.batter]+1; S.inn=2; S.batter=S.batter==='p1'?'p2':'p1'; S.balls=0; } 
+      else S.over=true;
     }
     if(S.inn===2 && !S.over && S.score[S.batter]>=(S.target||0)){ S.over=true; }
-    const ev={id:Date.now(),kind,by:this.me||'local',text:pick(LINES[kind]),runs}; S.ev=ev; this.lastEv=ev.id;
+    const ev={id:Date.now(),kind,by:this.me||'local',text:pick(LINES[kind]),runs}; 
+    S.ev=ev; this.lastEv=ev.id;
     if(this.online) Net.set('state',S);
-    this.present(ev); setTimeout(()=>this.afterBall(),2600);
+    try{ this.present(ev); }catch(e){ console.warn('present error', e); } 
+    setTimeout(()=>{ try{ this.afterBall(); }catch(e){ console.warn('afterBall error', e); } },2600);
   },
+
   present(ev){
     const out=OUTS.includes(ev.kind);
     UI.pop((ev.runs?`+${ev.runs}  `:'')+ev.text, out?'out':ev.runs>=4?'':ev.runs?'run':'out');
     if(ev.runs||out){ GFX.cheer(); out?Sfx.out():Sfx.cheer(); }
-    if(ev.kind==='six'||ev.kind==='four') GFX.batter.jump(); else if(out){ GFX.batter.ragdoll(); GFX.bowler.jump(); } else if(ev.runs) GFX.batter.jump();
+    if(ev.kind==='six'||ev.kind==='four') GFX.batter.jump(); 
+    else if(out){ GFX.batter.ragdoll(); GFX.bowler.jump(); } 
+    else if(ev.runs) GFX.batter.jump();
     GFX.react(ev.kind);
     if(['four','pitch','settle'].includes(ev.kind)) GFX.field(Sim.pos);
     if(ev.kind==='six'){ GFX.slowmo(1.4); GFX.punch(-11); GFX.confetti(); }
@@ -729,29 +820,49 @@ const Game = {
     else if(ev.kind==='bowled'){ GFX.breakStumps(); GFX.slowmo(1.2); GFX.punch(-9); }
     UI.hud(this.S,this.names());
   },
+
   afterBall(){
     if(!this.S) return;
-    if(this.S.over){ const {p1,p2}=this.S.score, n=this.names();
+    if(this._afterBallLock) return;
+    this._afterBallLock = true;
+
+    if(this.S.over){ 
+      const {p1,p2}=this.S.score, n=this.names();
       const winner = p1===p2 ? null : (p1>p2?'p1':'p2');
       const res = p1===p2 ? 'ড্র! চল চা খাই!' : (winner==='p1'?n.p1:n.p2)+' জিতেছে! '+(this.online&&winner===this.me?'Mama ekdom legend!':'');
       const detail = n.p1+': '+p1+'  ·  '+n.p2+': '+p2 + (winner?('  ·  ব্যবধান '+Math.abs(p1-p2)+' রান'):'');
       const tod = this.timeOfDay==='morning'?'সকালের':this.timeOfDay==='evening'?'সন্ধ্যার':'বিকেলের';
       const env = this.envType==='village'?'গ্রামের মাঠ':'শহরের গলি';
-      // rewards: trophy + rating
-      if(winner){
-        const iAmWinner = !this.online || winner===this.me;
-        if(iAmWinner){ this.updateStats(true); this.unlockSkin(); this.saveSkins(); this.coins+=100; }
-        else { this.updateStats(false); this.coins+=20; }
-      } else {
-        this.updateStats(null); this.coins+=30; }
-      this.saveCoins();
-      if(this.online && Net.ref){ try{ Net.ref.remove(); }catch(e){} }
-      UI.hint(''); UI.lobby(true,`<h1>${res}</h1><p style="font-size:18px;font-weight:800">${detail}</p><p style="opacity:.7;font-size:13px">${tod} · ${env}</p><button onclick="Game.toMenu()">Main Menu</button>`);
-      setTimeout(()=>this.toMenu(),4000); return; }
-    GFX.bowler.reset(); this.nextBall();
+      try{
+        if(winner){
+          const iAmWinner = !this.online || winner===this.me;
+          if(iAmWinner){ this.updateStats(true); this.unlockSkin(); this.saveSkins(); this.coins+=100; }
+          else { this.updateStats(false); this.coins+=20; }
+        } else { this.updateStats(null); this.coins+=30; }
+        this.saveCoins();
+      }catch(e){ console.warn('reward error', e); }
+
+      UI.hint(''); 
+      try{ 
+        UI.lobby(true,`<h1>${res}</h1><p style="font-size:18px;font-weight:800">${detail}</p><p style="opacity:.7;font-size:13px">${tod} · ${env}</p><button onclick="Game.toMenu()">Main Menu</button>`); 
+      }catch(e){ console.warn("lobby error", e); }
+
+      if(this.me==='p1' || !this.online){ 
+        this._winnerTimer = setTimeout(()=>{ 
+          this._winnerTimer=null; 
+          try{ this.toMenu(); }catch(e){} 
+        },4000); 
+      }
+      return; 
+    }
+
+    try{ GFX.bowler.reset(); }catch(e){ console.warn('bowler reset error', e); }
+    setTimeout(()=>{ this._afterBallLock=false; this.nextBall(); }, 100);
   },
+
   onState(s){
     if(!s){
+      if(this.online && !this.started && (this.S||this.vsShown)){ try{ this.toMenu(); }catch(e){} return; }
       if(this.started && this.online && !this.forfeitHandled && this.S && !this.S.over){
         this.forfeitHandled=true;
         const opp = this.me==='p1'?'p2':'p1';
@@ -761,20 +872,47 @@ const Game = {
         this.S.over=true;
         try{ this.afterBall(); }catch(e){}
       }
+      if(this.S && this.S.over && this.online && this.me!=='p1'){ try{ this.toMenu(); }catch(e){} }
       return;
     }
+
     this.S=s;
     if(s.timeOfDay) this.timeOfDay=s.timeOfDay;
     if(s.envType) this.envType=s.envType;
     if(s.roadType) this.roadType=s.roadType;
     if(typeof s.hasRiver!=='undefined') this.hasRiver=s.hasRiver;
-    if(!this.started && !this.vsShown){ this.vsShown=true; const n=this.names(); UI.lobby(true, '<h1 style="font-size:42px;margin:10px 0">'+n.p1+'  ⚔️  '+n.p2+'</h1><p style="font-size:18px;opacity:.8">Match starting...</p>'); setTimeout(()=>{ this.started=true; UI.lobby(false); GFX.rebuildScene(); GFX.setTheme(this.timeOfDay); GFX.batter.reset(); this.nextBall(); UI.hud(this.S,this.names()); }, 2000); return; }
+
+    if(!this.vsShown){ 
+      this.vsShown=true; 
+      const n=this.names(); 
+      UI.lobby(true, '<h1 style="font-size:42px;margin:10px 0">'+n.p1+'  ⚔️  '+n.p2+'</h1><p style="font-size:18px;opacity:.8">Match starting...</p>'); 
+      this._vsTimer=setTimeout(()=>{ 
+        this._vsTimer=null; 
+        if(!this.S) return;
+        this.started=true; 
+        UI.lobby(false); 
+        GFX.rebuildScene(); 
+        GFX.setTheme(this.timeOfDay); 
+        GFX.batter.reset(); 
+        this.nextBall(); 
+        UI.hud(this.S,this.names()); 
+      }, 2000); 
+      return; 
+    }
+
     UI.hud(s,this.names());
-    if(s.ev && s.ev.id!==this.lastEv){ this.lastEv=s.ev.id; if(s.ev.by!==this.me){ this.present(s.ev); setTimeout(()=>this.afterBall(),2600); } }
+
+    if(s.ev && s.ev.id!==this.lastEv){ 
+      this.lastEv=s.ev.id; 
+      if(s.ev.by!==this.me){ 
+        try{ this.present(s.ev); }catch(e){ console.warn('present error', e); } 
+        setTimeout(()=>{ try{ this.afterBall(); }catch(e){ console.warn('afterBall error', e); } },2600); 
+      } 
+    }
   }
 };
 
-/* ===== INPUT (mouse drag / touch swipe) ===== */
+/* ===== INPUT ===== */
 const Input = {
   init(){
     const cv=$('c'), tl=$('tl'); let st=null, pts=[];
@@ -814,6 +952,9 @@ const STORE_ITEMS=[
 function renderStore(){
   if(!Array.isArray(Game.items)) Game.items=['bat_basic','jersey_basic','cap_basic'];
   if(!Game.equipped||typeof Game.equipped!=='object') Game.equipped={bat:'bat_basic',jersey:'jersey_basic',cap:'cap_basic'};
+  if(!Array.isArray(Game.skins)) Game.skins=["Classic"];
+  if(!Game.skin) Game.skin="Classic";
+  Game.equipped.bat=Game.equipped.bat||"bat_basic"; Game.equipped.jersey=Game.equipped.jersey||"jersey_basic"; Game.equipped.cap=Game.equipped.cap||"cap_basic";
   refreshStats();
   ['bat','jersey','cap'].forEach(type=>{
     const list=$(type==='bat'?'batList':type==='jersey'?'jerseyList':'capList');
@@ -833,11 +974,11 @@ function renderStore(){
       const sp=document.createElement('span'); sp.textContent=it.name+' ('+it.price+' coins)'+(owned?(equipped?' [EQUIPPED]':' (owned)'):''); div.appendChild(sp);
       if(!owned){
         const btn=document.createElement('button'); btn.textContent='Buy';
-        btn.onclick=()=>{ if(Game.coins<it.price) return alert('Not enough coins'); Game.coins-=it.price; Game.items.push(it.id); Game.saveCoins(); Game.saveItems(); renderStore(); };
+        btn.onclick=()=>{ if(Game.coins<it.price) return alert('Not enough coins'); Game.coins-=it.price; Game.items.push(it.id); Game.saveCoins(); Game.saveItems(); if(typeof Game.syncLeaderboard==='function') Game.syncLeaderboard(); renderStore(); };
         div.appendChild(btn);
       } else if(!equipped){
         const btn=document.createElement('button'); btn.textContent='Equip';
-        btn.onclick=()=>{ Game.equipped[type]=it.id; Game.saveItems(); renderStore(); };
+        btn.onclick=()=>{ Game.equipped[type]=it.id; Game.saveItems(); if(typeof Game.syncLeaderboard==='function') Game.syncLeaderboard(); renderStore(); };
         div.appendChild(btn);
       }
       list.appendChild(div);
@@ -856,12 +997,13 @@ async function loadProfile(name){
       const snap=await Net.db.ref('users/'+name).once('value');
       const v=snap.val();
       if(v){
-        Game.trophies = (v.trophies!=null)?v.trophies:Game.trophies;
-        Game.rating = (v.rating!=null)?v.rating:Game.rating;
-        Game.coins = (v.coins!=null)?v.coins:Game.coins;
-        Game.items = Array.isArray(v.items)?v.items:Game.items;
-        Game.equipped = (v.equipped&&typeof v.equipped==='object')?v.equipped:Game.equipped;
-        Game.skins = v.skins||Game.skins;
+        Game.trophies = (v.trophies!=null)?Math.max(Game.trophies,v.trophies):Game.trophies;
+        Game.rating = (v.rating!=null)?Math.max(Game.rating,v.rating):Game.rating;
+        Game.coins = (v.coins!=null)?Math.max(Game.coins,v.coins):Game.coins;
+        if(Array.isArray(v.items)){ v.items.forEach(id=>{ if(!Game.items.includes(id)) Game.items.push(id); }); }
+        ["bat_basic","jersey_basic","cap_basic"].forEach(id=>{ if(!Game.items.includes(id)) Game.items.push(id); });
+        if(v.equipped&&typeof v.equipped==='object'){ Game.equipped=Object.assign({},Game.equipped,v.equipped); Game.equipped.bat=Game.equipped.bat||'bat_basic'; Game.equipped.jersey=Game.equipped.jersey||'jersey_basic'; Game.equipped.cap=Game.equipped.cap||'cap_basic'; }
+        Game.skins = (Array.isArray(v.skins)&&v.skins.length)?Array.from(new Set(Game.skins.concat(v.skins))):Game.skins;
         Game.skin = v.skin||Game.skin;
         Game.saveTrophies(); Game.saveCoins(); Game.saveItems(); Game.saveSkins();
         try{ localStorage.setItem('bgl_skin', Game.skin); }catch(e){}
@@ -870,7 +1012,6 @@ async function loadProfile(name){
     }
   }catch(e){}
 }
-// username modal
 (function(){
   const nm=$('nameModal'); const uname=$('uname'); const bn=$('bName');
   const saved=Game.username;
@@ -892,11 +1033,11 @@ $('mPlay').onclick=async()=>{ if(!ready) return; Sfx.init();
   showPanel('searchPanel');
   const sm=$('searchMsg'); if(sm) sm.textContent='Looking for a player...';
   const m=await Net.findMatch();
-  if(!m){ if(sm) sm.textContent='No opponent found. Try again.'; showPanel('menu'); return; }
+  if(!m){ try{Net.cancelMatch();}catch(e){} if(sm) sm.textContent='No opponent found. Try again.'; showPanel('menu'); return; }
   const ok=await Game.startOnline(m);
   if(!ok){ if(sm) sm.textContent='Failed to start.'; showPanel('menu'); }
 };
-$('bCancelSearch').onclick=()=>{ showPanel('menu'); };
+$('bCancelSearch').onclick=()=>{ try{ if(typeof Net!=='undefined') Net.cancelMatch(); }catch(e){} showPanel('menu'); };
 $('mCustom').onclick=()=>{ showPanel('customPanel'); };
 $('mStore').onclick=()=>{ showPanel('storePanel'); refreshStats(); renderStore(); };
 $('mLeaderboard').onclick=()=>{ showPanel('leaderboardPanel'); renderLeaderboard(); };
@@ -913,7 +1054,7 @@ $('bOnline').onclick=async()=>{ if(!ready) return; Sfx.init();
   if(code){ ok = await Game.startOnline(code); }
   else {
     const m = await Net.findMatch();
-    if(!m){ msg.textContent='Matchmaking failed. Try again.'; return; }
+    if(!m){ try{Net.cancelMatch();}catch(e){} msg.textContent='Matchmaking failed. Try again.'; return; }
     ok = await Game.startOnline(m);
   }
   if(!ok) msg.textContent='Room is full. Try another code.';

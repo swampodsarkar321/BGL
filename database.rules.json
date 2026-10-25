@@ -1,0 +1,30 @@
+{
+  "rules": {
+    "rooms": {
+      "$room": {
+        ".read": true,
+        ".write": true,
+        ".indexOn": ["createdAt", "status"]
+      }
+    },
+    "users": {
+      "$user": {
+        ".read": true,
+        ".write": true,
+        ".validate": "newData.hasChildren(['name'])"
+      }
+    },
+    "usernames": {
+      "$name": {
+        ".read": true,
+        ".write": true
+      }
+    },
+    "leaderboard": {
+      "$user": {
+        ".read": true,
+        ".write": true
+      }
+    }
+  }
+}
