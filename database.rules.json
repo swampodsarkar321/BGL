@@ -7,6 +7,23 @@
         ".indexOn": ["createdAt", "status"]
       }
     },
+    "matchmaking": {
+      "waiting": {
+        ".read": true,
+        ".write": true
+      },
+      "assign": {
+        "$uid": {
+          ".read": true,
+          ".write": true
+        }
+      }
+    },
+    "live": {
+      ".read": true,
+      ".write": true,
+      ".indexOn": ["ts"]
+    },
     "users": {
       "$user": {
         ".read": true,
@@ -21,6 +38,7 @@
       }
     },
     "leaderboard": {
+      ".read": true,
       "$user": {
         ".read": true,
         ".write": true
