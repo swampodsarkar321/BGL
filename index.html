@@ -511,7 +511,7 @@ const GFX = {
     this.fielders=[[-4,-3,0x2a6f9a],[4,-4,0xffc93c],[-4,4,0x00a19b],[4,3,0xe4007c]].map(([x,z,c],i)=>{
       const f=new Figure(c,x,z,false,Math.atan2(x-.2,z-6.9)); f.ready=true; f.name=NAMES[i]; f.g.scale.setScalar(.94+R_()*.12); f.reset(); return f; });
     const bc=document.createElement('canvas'); bc.width=128; bc.height=64; const bx=bc.getContext('2d'); bx.fillStyle='#d6ff3a'; bx.fillRect(0,0,128,64); bx.fillStyle='#fff'; bx.fillRect(0,28,128,7); bx.fillStyle='rgba(0,0,0,.14)'; for(let i=0;i<400;i++) bx.fillRect(Math.random()*128,Math.random()*64,1,1);
-    this.ball=new THREE.Mesh(new THREE.SphereGeometry(CFG.R*1.4,24,16),new THREE.MeshStandardMaterial({map:tex(bc),roughness:.5})); this.ball.castShadow=true; this.scene.add(this.ball);
+    this.ball=new THREE.Mesh(new THREE.SphereGeometry(CFG.R*2.2,24,16),new THREE.MeshStandardMaterial({map:tex(bc),roughness:.4,emissive:0x3a3a00,emissiveIntensity:.35})); this.ball.castShadow=true; this.scene.add(this.ball);
     const band=new THREE.Mesh(new THREE.TorusGeometry(CFG.R*1.4,.015,5,14),mat(0x111111)); this.ball.add(band);
     this.shadow=new THREE.Mesh(new THREE.CircleGeometry(.18,10),new THREE.MeshBasicMaterial({color:0,transparent:true,opacity:.4}));
     this.shadow.rotation.x=-Math.PI/2; this.scene.add(this.shadow); this.ball.visible=this.shadow.visible=false;
@@ -520,7 +520,7 @@ const GFX = {
     for(let i=0;i<18;i++){ const m=new THREE.Mesh(tg,new THREE.MeshBasicMaterial({color:0xffe45c,transparent:true,opacity:0,blending:THREE.AdditiveBlending,depthWrite:false,fog:false})); m.visible=false; this.scene.add(m); this.trail.push(m); }
   },
   updTrail(){
-    if(Sim.mode==='fly'&&Sim.v.length()>2.5) this.th.push(Sim.pos.clone()); else if(this.th.length) this.th.shift();
+    if((Sim.mode==='fly'||Sim.mode==='bowl')&&Sim.v.length()>2.5) this.th.push(Sim.pos.clone()); else if(this.th.length) this.th.shift();
     while(this.th.length>18) this.th.shift();
     const n=this.th.length;
     this.trail.forEach((m,i)=>{ const p=this.th[n-1-i]; if(!p){ m.visible=false; return; } const k=1-i/18; m.visible=true; m.position.copy(p); m.scale.setScalar(.25+k*.9); m.material.opacity=.7*k*k; });
