@@ -28,9 +28,9 @@ th{background:#3d5a80}
 <div class="container">
   <div id="login" class="login">
     <h2>Admin Login</h2>
-    <p>Only mdswampodsarkar@gmail.com can access.</p>
-    <button class="action" onclick="login()">Sign in with Google</button>
-    <button class="action" onclick="logout()">Sign out</button>
+    <input id="email" type="email" placeholder="Email" value="mdswampodsarkar@gmail.com">
+    <input id="password" type="password" placeholder="Password">
+    <button class="action" onclick="login()">Login</button>
     <p id="lmsg"></p>
   </div>
   <div id="app" style="display:none">
@@ -60,33 +60,22 @@ const FIREBASE_CONFIG = {
   appId: "1:1757763305:web:0000000000000000000000"
 };
 const ADMIN_EMAIL='mdswampodsarkar@gmail.com';
-let db=null, auth=null;
+const ADMIN_PASS='123456';
+let db=null;
 function initFirebase(){
-  try{ if(!window.firebase) return false; firebase.initializeApp(FIREBASE_CONFIG); db=firebase.database(); auth=firebase.auth(); return true; }catch(e){ console.warn(e); return false; }
+  try{ if(!window.firebase) return false; firebase.initializeApp(FIREBASE_CONFIG); db=firebase.database(); return true; }catch(e){ console.warn(e); return false; }
 }
 function setMsg(m){ const el=document.getElementById('lmsg'); if(el) el.textContent=m; }
 function showApp(){ document.getElementById('login').style.display='none'; document.getElementById('app').style.display='block'; loadAll(); }
 function showLogin(){ document.getElementById('login').style.display='block'; document.getElementById('app').style.display='none'; }
-async function login(){
+function login(){
+  const email=document.getElementById('email').value.trim();
+  const pass=document.getElementById('password').value;
+  if(email!==ADMIN_EMAIL || pass!==ADMIN_PASS){ setMsg('Wrong email or password'); return; }
   if(!initFirebase()){ setMsg('Firebase init failed'); return; }
-  try{
-    const provider=new firebase.auth.GoogleAuthProvider();
-    await auth.signInWithPopup(provider);
-  }catch(e){ setMsg(e.message||'Login failed'); }
+  setMsg('Login success');
+  showApp();
 }
-async function logout(){ try{ if(auth) await auth.signOut(); }catch(e){} showLogin(); }
-if(initFirebase()){
-  auth.onAuthStateChanged(user=>{
-    if(user && user.email===ADMIN_EMAIL){
-      setMsg('Signed in as '+user.email);
-      showApp();
-    } else {
-      if(user){ auth.signOut(); setMsg('Access denied for '+user.email); }
-      else setMsg('Please sign in with Google.');
-      showLogin();
-    }
-  });
-} else { setMsg('Firebase init failed'); }
 document.querySelectorAll('.tab').forEach(b=>b.addEventListener('click',()=>{
   document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
   b.classList.add('active');

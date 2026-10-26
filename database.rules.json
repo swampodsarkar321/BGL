@@ -54,17 +54,17 @@
       ".write": true
     },
     "anticheat": {
-      ".read": "auth != null && auth.token.email == 'mdswampodsarkar@gmail.com'",
+      ".read": true,
       ".write": true
     },
     "events": {
       ".read": true,
-      ".write": "auth != null && auth.token.email == 'mdswampodsarkar@gmail.com'"
+      ".write": true
     },
     "store": {
       "items": {
         ".read": true,
-        ".write": "auth != null && auth.token.email == 'mdswampodsarkar@gmail.com'"
+        ".write": true
       }
     }
   }
