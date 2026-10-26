@@ -121,6 +121,11 @@ body.slow::after{background:radial-gradient(ellipse at center,transparent 32%,rg
     <div id="teamList"></div>
     <button id="bBackTeam">Back</button>
   </div>
+  <div id="eventsPanel" style="display:none">
+    <h2>Events</h2>
+    <div id="eventsList"></div>
+    <button id="bBackEvents">Back</button>
+  </div>
   <div id="replayPanel" style="display:none">
     <h2>Replays</h2>
     <div id="rpList"></div>
@@ -780,6 +785,7 @@ const Game = {
   openTeam(){ const panel=$('teamPanel'); if(!panel){ return; } panel.style.display='block'; this.saveTeam(); const list=$('teamList'); if(list){ list.innerHTML=this.team.map((p,i)=>'<div style="padding:6px;border:1px solid #333;margin:4px;border-radius:8px">'+p.name+' ('+p.role+') Rating '+p.rating+(i===this.captain?' [C]':'')+' <button onclick="Game.setCaptain('+i+')">Captain</button> <button onclick="Game.upgradePlayer('+i+')">Upgrade (50 coins)</button></div>').join(''); } const ov=$('teamOverall'); if(ov) ov.textContent='Team Overall: '+this.teamOverall; const back=$('bBackTeam'); if(back) back.onclick=()=>{ panel.style.display='none'; }; },
   setCaptain(i){ this.captain=i; this.saveTeam(); this.openTeam(); },
   upgradePlayer(i){ if(this.coins<50){ alert('Not enough coins'); return; } this.coins-=50; this.team[i].rating+=2; this.saveCoins(); this.saveTeam(); this.openTeam(); },
+  openEvents(){ const panel=$('eventsPanel'); if(!panel) return; panel.style.display='block'; const list=$('eventsList'); if(list){ const evs=[{name:'Daily Challenge',reward:'50 coins'},{name:'Weekend Challenge',reward:'100 coins'},{name:'Knockout Cup',reward:'Trophy'},{name:'T20 Cup',reward:'Rare card'}]; list.innerHTML=evs.map(e=>'<div style="padding:6px;border:1px solid #333;margin:4px;border-radius:8px">'+e.name+' - '+e.reward+' <button onclick="alert(\'Joined '+e.name+'\')">Join</button></div>').join(''); } const back=$('bBackEvents'); if(back) back.onclick=()=>{ panel.style.display='none'; }; },
   openProfile(){ const p=$('profilePanel'); if(p){ p.style.display='block'; const info=$('profileInfo'); if(info) info.innerHTML='Name: '+ (this.username||'Player') +'<br>Level: '+this.level+' (XP '+this.xp+')<br>Matches: '+this.matches+' Wins: '+this.wins+' WinRate: '+(this.matches?Math.round(this.wins/this.matches*100):0)+'%<br>Total Runs: '+this.runsTotal+'<br>Trophies: '+this.trophies+' Coins: '+this.coins; } const b=$('bBackProfile'); if(b) b.onclick=()=>{ p.style.display='none'; }; },
   openKitBag(){ const r=Math.random(); let msg=''; if(r<0.5){ const c=10+Math.floor(Math.random()*41); this.coins+=c; this.saveCoins(); msg='You got '+c+' coins!'; }
     else if(r<0.7){ const ids=(this.storeItems||STORE_ITEMS).map(x=>x.id); const id=ids[Math.floor(Math.random()*ids.length)]; if(!this.items.includes(id)){ this.items.push(id); this.saveItems(); msg='New item unlocked: '+id; } else { this.coins+=25; this.saveCoins(); msg='Duplicate item -> 25 coins'; } }
@@ -1274,7 +1280,7 @@ $('bSpectate').onclick=async()=>{ if(!ready) return; Sfx.init();
 
 $('mShare').onclick=async()=>{ const url=location.href; try{ if(navigator.share){ await navigator.share({title:'Bangladesh Gully League',text:'Play gully cricket with me!',url}); } else { await navigator.clipboard.writeText(url); alert('Link copied!'); } }catch(e){} };
 $('mKit').onclick=()=>{ Game.openKitBag(); };
-document.querySelectorAll('#bottomNav button').forEach(b=>{ b.onclick=()=>{ document.querySelectorAll('#bottomNav button').forEach(x=>x.classList.remove('active')); b.classList.add('active'); const tab=b.dataset.tab; if(tab==='home') Game.toMenu(); else if(tab==='profile') Game.openProfile(); else if(tab==='team') Game.openTeam(); else if(tab==='store'){ const sp=$('storePanel'); if(sp) sp.style.display='block'; } else alert(tab+' screen coming soon'); }; });
+document.querySelectorAll('#bottomNav button').forEach(b=>{ b.onclick=()=>{ document.querySelectorAll('#bottomNav button').forEach(x=>x.classList.remove('active')); b.classList.add('active'); const tab=b.dataset.tab; if(tab==='home') Game.toMenu(); else if(tab==='profile') Game.openProfile(); else if(tab==='team') Game.openTeam(); else if(tab==='events') Game.openEvents(); else if(tab==='store'){ const sp=$('storePanel'); if(sp) sp.style.display='block'; } else alert(tab+' screen coming soon'); }; });
 
 }
 bindMenu();
