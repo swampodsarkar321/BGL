@@ -167,14 +167,36 @@ async function loadStore(){
     const snap=await db.ref('store/items').once('value');
     const v=snap.val()||{};
     let html='<h2>Store Items</h2>';
-    html+='<div><input id="sId" placeholder="id"><input id="sName" placeholder="name"><select id="sType"><option value="bat">bat</option><option value="jersey">jersey</option><option value="cap">cap</option></select><input id="sPrice" type="number" placeholder="price"><input id="sColor" placeholder="color hex"><input id="sNumber" placeholder="jersey number"><button class="action" onclick="createStoreItem()">Create</button></div>';
+    html+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;align-items:end">';
+    html+='<div><label>ID</label><input id="sId" placeholder="id"></div>';
+    html+='<div><label>Name</label><input id="sName" placeholder="name" oninput="updatePreview()"></div>';
+    html+='<div><label>Type</label><select id="sType" onchange="updatePreview()"><option value="bat">bat</option><option value="jersey">jersey</option><option value="cap">cap</option></select></div>';
+    html+='<div><label>Price</label><input id="sPrice" type="number" placeholder="price"></div>';
+    html+='<div><label>Color</label><input id="sColor" type="color" value="#ff0000" oninput="updatePreview()"></div>';
+    html+='<div><label>Jersey #</label><input id="sNumber" placeholder="7" oninput="updatePreview()"></div>';
+    html+='</div>';
+    html+='<div style="margin:8px 0;display:flex;align-items:center;gap:12px"><canvas id="preview" width="80" height="80" style="border:1px solid #888;border-radius:8px;background:#222"></canvas><button class="action" onclick="createStoreItem()">Add Item (Live)</button></div>';
     html+='<table><tr><th>ID</th><th>Name</th><th>Type</th><th>Price</th><th>Color</th><th>Action</th></tr>';
     Object.entries(v).forEach(([id,it])=>{
       html+='<tr><td>'+esc(id)+'</td><td>'+esc(it.name)+'</td><td>'+esc(it.type)+'</td><td>'+esc(it.price)+'</td><td>'+esc(it.color)+'</td><td><button class="action" onclick="deleteStoreItem(\''+esc(id)+'\')">Delete</button></td></tr>';
     });
     html+='</table>';
     el.innerHTML=html;
+    setTimeout(updatePreview,0);
   }catch(err){ el.innerHTML='Error: '+esc(err.message); }
+}
+function updatePreview(){
+  const cv=document.getElementById('preview'); if(!cv) return;
+  const cx=cv.getContext('2d'); cx.clearRect(0,0,80,80);
+  const type=document.getElementById('sType')?document.getElementById('sType').value:'bat';
+  const color=document.getElementById('sColor')?document.getElementById('sColor').value:'#ffffff';
+  const num=document.getElementById('sNumber')?document.getElementById('sNumber').value:'7';
+  const name=document.getElementById('sName')?document.getElementById('sName').value:'';
+  cx.fillStyle=color;
+  if(type==='bat'){ cx.fillRect(36,10,8,60); cx.fillStyle='#333'; cx.fillRect(32,10,16,8); }
+  else if(type==='jersey'){ cx.beginPath(); cx.moveTo(20,15); cx.lineTo(60,15); cx.lineTo(68,65); cx.lineTo(12,65); cx.closePath(); cx.fill(); cx.fillStyle='#000'; cx.font='bold 18px sans-serif'; cx.textAlign='center'; cx.fillText(num,40,45); }
+  else { cx.beginPath(); cx.arc(40,50,22,Math.PI,2*Math.PI); cx.fill(); cx.fillRect(18,50,44,6); }
+  cx.fillStyle='#fff'; cx.font='12px sans-serif'; cx.textAlign='center'; cx.fillText(name,40,12);
 }
 async function createStoreItem(){
   const id=document.getElementById('sId').value.trim()||('item_'+Math.random().toString(36).slice(2,6));
