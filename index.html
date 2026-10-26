@@ -67,8 +67,13 @@ body.slow::after{background:radial-gradient(ellipse at center,transparent 32%,rg
   <div id="menu">
     <button id="mPlay">PLAY 1v1</button>
     <button id="mCustom">Custom Match</button>
+    <button id="mTraining">Training Mode</button>
     <button id="mStore">Store</button>
     <button id="mLeaderboard">Leaderboard</button>
+    <button id="mReplays">Replays</button>
+    <button id="mTournaments">Tournaments</button>
+    <button id="mPro">Pro League</button>
+    <button id="mRegion">Region: Asia</button>
     <button id="mLive">Watch Live 👁</button>
     <button id="mAbout">About</button>     <button id="mShare">Share 📲</button>
     <button id="mExit">Exit</button>
@@ -98,6 +103,23 @@ body.slow::after{background:radial-gradient(ellipse at center,transparent 32%,rg
     <h2>Leaderboard</h2>
     <div id="lbList"></div>
     <button id="bBackLb">Back</button>
+  </div>
+  <div id="replayPanel" style="display:none">
+    <h2>Replays</h2>
+    <div id="rpList"></div>
+    <button id="bBackRp">Back</button>
+  </div>
+  <div id="tournamentPanel" style="display:none">
+    <h2>Tournaments</h2>
+    <div id="tList"></div>
+    <input id="tName" placeholder="Tournament name" style="width:100%;margin:6px 0">
+    <button id="tCreate">Create (4 players)</button>
+    <button id="bBackT">Back</button>
+  </div>
+  <div id="proPanel" style="display:none">
+    <h2>Pro League (rating 1500+)</h2>
+    <div id="proList"></div>
+    <button id="bBackPro">Back</button>
   </div>
   <div id="livePanel" style="display:none">
     <h2>Live Matches 👁</h2>
@@ -663,10 +685,18 @@ const Net = {
     const uid=this.uid; let opponentUid=null;
     try{ await this.db.ref('matchmaking/assign/'+uid).remove(); }catch(e){}
     const res=await this.db.ref('matchmaking/waiting').transaction(cur=>{
-      if(!cur || (cur.ts && Date.now()-cur.ts>60000)){ return {uid, name:Game.username||'Player', ts:Date.now()}; }
-      if(cur.uid===uid) return cur;
-      opponentUid=cur.uid;
-      return null;
+      cur = (cur && typeof cur==='object') ? cur : {};
+      const now=Date.now();
+      for(const k in cur){ if(!cur[k] || (cur[k].ts && now-cur[k].ts>60000)) delete cur[k]; }
+      delete cur[uid];
+      let best=null, bestDiff=Infinity;
+      for(const k in cur){
+        const diff=Math.abs((cur[k].rating||1000)-(Game.rating||1000));
+        if(diff<=300 && diff<bestDiff){ best=k; bestDiff=diff; }
+      }
+      if(best){ opponentUid=best; delete cur[best]; return cur; }
+      cur[uid]={uid, name:Game.username||'Player', ts:now, rating:Game.rating};
+      return cur;
     });
     if(!res.committed) return null;
     if(opponentUid){
@@ -676,12 +706,12 @@ const Net = {
       return {code, role:'p2'};
     }
     const snap=await this.db.ref('matchmaking/waiting').once('value');
-    const v=snap.val();
-    if(v && v.uid===uid){
-      const wref=this.db.ref('matchmaking/waiting'); try{ wref.onDisconnect().remove(); }catch(e){}
+    const v=snap.val()||{};
+    if(v[uid]){
+      const wref=this.db.ref('matchmaking/waiting/'+uid); try{ wref.onDisconnect().remove(); }catch(e){}
       return await new Promise(resolve=>{
         const r=this.db.ref('matchmaking/assign/'+uid); let tm=null;
-        const done=val=>{ clearTimeout(tm); try{ r.off(); }catch(e){} try{ wref.onDisconnect().cancel(); }catch(e){} this._wr=null; if(!val){ try{ wref.transaction(c=>(c&&c.uid===uid)?null:c); }catch(e){} } resolve(val); };
+        const done=val=>{ clearTimeout(tm); try{ r.off(); }catch(e){} try{ wref.onDisconnect().cancel(); }catch(e){} this._wr=null; if(!val){ try{ wref.remove(); }catch(e){} } resolve(val); };
         tm=setTimeout(()=>done(null),45000); this._wr=done;
         r.on('value', s=>{ const a=s.val(); if(a&&a.code){ try{ r.remove(); }catch(e){} done({code:a.code, role:a.role}); } });
       });
@@ -696,8 +726,9 @@ const __MENU_HTML__ = ($('card') && $('card').innerHTML) || '';
 
 /* ===== GAME LOGIC (fully fixed) ===== */
 const Game = {
-  me:null, spectator:false, online:false, S:null, lastEv:0, lastShot:0, started:false, vsShown:false, _afterBallLock:false, timeOfDay:'afternoon', envType:'city', roadType:'paved', hasRiver:false, roomCode:null, forfeitHandled:false, username:(function(){try{return localStorage.getItem('bgl_name')||'';}catch(e){return '';}})(), trophies:(function(){try{return Number(localStorage.getItem('bgl_trophies'))||0;}catch(e){return 0;}})(), rating:(function(){try{return Number(localStorage.getItem('bgl_rating'))||1000;}catch(e){return 1000;}})(), coins:(function(){try{return Number(localStorage.getItem('bgl_coins'))||0;}catch(e){return 0;}})(), items:(function(){try{const v=JSON.parse(localStorage.getItem('bgl_items')); return Array.isArray(v)?v:['bat_basic','jersey_basic','cap_basic'];}catch(e){return ['bat_basic','jersey_basic','cap_basic'];}})(), equipped:(function(){try{const v=JSON.parse(localStorage.getItem('bgl_equipped')); return (v&&typeof v==='object')?v:{bat:'bat_basic',jersey:'jersey_basic',cap:'cap_basic'};}catch(e){return {bat:'bat_basic',jersey:'jersey_basic',cap:'cap_basic'};}})(), skins:(function(){try{const v=JSON.parse(localStorage.getItem('bgl_skins')); return (Array.isArray(v)&&v.length)?v:['Classic'];}catch(e){return ['Classic'];}})(), skin:(function(){try{return localStorage.getItem('bgl_skin')||'Classic';}catch(e){return 'Classic';}})(), pNames:{},
+  me:null, spectator:false, region:(function(){try{return localStorage.getItem('bgl_region')||'Asia';}catch(e){return 'Asia';}})(), online:false, training:false, replay:[], _lastBall:0, S:null, lastEv:0, lastShot:0, started:false, vsShown:false, _afterBallLock:false, timeOfDay:'afternoon', envType:'city', roadType:'paved', hasRiver:false, roomCode:null, forfeitHandled:false, username:(function(){try{return localStorage.getItem('bgl_name')||'';}catch(e){return '';}})(), trophies:(function(){try{return Number(localStorage.getItem('bgl_trophies'))||0;}catch(e){return 0;}})(), rating:(function(){try{return Number(localStorage.getItem('bgl_rating'))||1000;}catch(e){return 1000;}})(), coins:(function(){try{return Number(localStorage.getItem('bgl_coins'))||0;}catch(e){return 0;}})(), items:(function(){try{const v=JSON.parse(localStorage.getItem('bgl_items')); return Array.isArray(v)?v:['bat_basic','jersey_basic','cap_basic'];}catch(e){return ['bat_basic','jersey_basic','cap_basic'];}})(), equipped:(function(){try{const v=JSON.parse(localStorage.getItem('bgl_equipped')); return (v&&typeof v==='object')?v:{bat:'bat_basic',jersey:'jersey_basic',cap:'cap_basic'};}catch(e){return {bat:'bat_basic',jersey:'jersey_basic',cap:'cap_basic'};}})(), skins:(function(){try{const v=JSON.parse(localStorage.getItem('bgl_skins')); return (Array.isArray(v)&&v.length)?v:['Classic'];}catch(e){return ['Classic'];}})(), skin:(function(){try{return localStorage.getItem('bgl_skin')||'Classic';}catch(e){return 'Classic';}})(), pNames:{},
 
+  season(){ return new Date().toISOString().slice(0,7); },
   fresh:()=>({inn:1,batter:'p1',balls:0,score:{p1:0,p2:0},over:false,ev:null,target:0,timeOfDay:Game.timeOfDay,envType:Game.envType,roadType:Game.roadType,hasRiver:Game.hasRiver}),
   setTime(t){ this.timeOfDay=t; if(typeof GFX!=='undefined' && GFX.scene) GFX.setTheme(t); },
   setEnv(type,road,river){ this.envType=type; this.roadType=road; this.hasRiver=river; if(typeof GFX!=='undefined' && GFX.scene) GFX.rebuildScene(); },
@@ -707,7 +738,7 @@ const Game = {
 
   toMenu(){ 
     try{ Emote.hide(); }catch(e){} clearTimeout(this._jt);
-    this.vsShown=false; this._afterBallLock=false; 
+    this.vsShown=false; this._afterBallLock=false; this.training=false; this._lastBall=0; 
     if(this._vsTimer){ clearTimeout(this._vsTimer); this._vsTimer=null; }
     if(this._winnerTimer){ clearTimeout(this._winnerTimer); this._winnerTimer=null; }
     if(this.online && Net.ref){ 
@@ -731,21 +762,28 @@ const Game = {
   saveCoins(){ try{ localStorage.setItem('bgl_coins', String(this.coins)); }catch(e){} },
   saveItems(){ try{ localStorage.setItem('bgl_items', JSON.stringify(this.items)); localStorage.setItem('bgl_equipped', JSON.stringify(this.equipped)); }catch(e){} },
   updateStats(win){ if(win===true){ this.trophies+=1; this.rating+=100; } else if(win===false){ this.rating=Math.max(0,this.rating-70); } else { this.rating+=15; } this.saveTrophies(); this.syncLeaderboard(); },
-  syncLeaderboard(){ try{ if(typeof Net!=='undefined' && Net.db){ const prof={name:Game.username||'Player', trophies:Game.trophies, rating:Game.rating, coins:Game.coins, items:Game.items, equipped:Game.equipped, skins:Game.skins, skin:Game.skin}; Net.db.ref('leaderboard/'+(Game.username||'Player')).set({name:Game.username||'Player', trophies:Game.trophies, rating:Game.rating}); Net.db.ref('users/'+(Game.username||'Player')).set(prof); } }catch(e){} },
+  syncLeaderboard(){ try{ if(typeof Net!=='undefined' && Net.db){ const prof={name:Game.username||'Player', trophies:Game.trophies, rating:Game.rating, coins:Game.coins, items:Game.items, equipped:Game.equipped, skins:Game.skins, skin:Game.skin}; const __season=Game.season(); Net.db.ref('leaderboard/'+__season+'/'+(Game.username||'Player')).set({name:Game.username||'Player', trophies:Game.trophies, rating:Game.rating, season:__season}); Net.db.ref('users/'+(Game.username||'Player')).set(prof); } }catch(e){} },
 
   gearOf(pl){ if(!this.online) return this.equipped; return pl===this.me?this.equipped:((this.pEq&&this.pEq[pl])||null); },
   doEmote(k){ if(!this.S||this.spectator) return; const mine=this.online?this.me:this.S.batter; (this.S.batter===mine?GFX.batter:GFX.bowler).emote(k); if(this.online) Net.set('emote',{id:Date.now(),by:this.me,k}); },
   onEmote(e){ if(!e||e.id===this.lastEmote) return; this.lastEmote=e.id; if(e.by===this.me||!this.started||!this.S) return; (this.S.batter===e.by?GFX.batter:GFX.bowler).emote(e.k); },
   playAgain(){ if(this.online){ this.toMenu(); } else { this.startLocal(); } }, 
   startLocal(){
-    this.online=false; this.vsShown=false; this._afterBallLock=false; this.started=false; 
+    this.online=false; this.training=false; this._lastBall=0; this.vsShown=false; this._afterBallLock=false; this.started=false; 
     this.timeOfDay=['morning','afternoon','evening'][Math.floor(Math.random()*3)]; 
     this.envType='city'; this.roadType='paved'; this.hasRiver=Math.random()<0.5; 
     this.S=this.fresh(); GFX.rebuildScene(); this.begin(); 
   },
+  startTraining(){
+    this.online=false; this.spectator=false; this.training=true; this.vsShown=false; this._afterBallLock=false; this.started=false;
+    this.timeOfDay=['morning','afternoon','evening'][Math.floor(Math.random()*3)];
+    this.envType='city'; this.roadType='paved'; this.hasRiver=Math.random()<0.5;
+    this.S=this.fresh(); this.S.batter='p1'; GFX.rebuildScene(); this.begin();
+    UI.hint('Training Mode — swipe to hit');
+  },
 
   async startOnline(codeOrMatch){
-    this.online=true; 
+    this.online=true; this.training=false; this._lastBall=0; 
     this.timeOfDay=['morning','afternoon','evening'][Math.floor(Math.random()*3)]; 
     this.envType='city'; this.roadType='paved'; this.hasRiver=Math.random()<0.5;
     this.S = null; this.started = false; this.vsShown = false; this._afterBallLock = false; 
@@ -867,6 +905,7 @@ const Game = {
     const sh=this.classify(angle,power,lift,len); UI.hint(''); UI.shot(sh.name);
     if(this.online) Net.set('shot',{id:Date.now(),by:this.me,a:sh.a,p:sh.p,l:sh.l,m:sh.m,s:sh.s,d:sh.d,n:sh.name});
     Sim.hit(sh.a,sh.p,sh.l,sh.m,sh.s,sh.d);
+    try{ this.replay.push({t:Date.now(),type:'swipe',angle:sh.a,power:sh.p,lift:sh.l,name:sh.name}); }catch(e){}
   },
 
   onShot(sh){ 
@@ -882,15 +921,20 @@ const Game = {
     const d=Math.hypot(Sim.pos.x,Sim.pos.z-5), S=this.S, out=OUTS.includes(kind);
     const runs={six:6,four:4,pitch:1,settle:d>9?2:1}[kind]||0;
     S.score[S.batter]+=runs; S.balls++;
-    if(out||S.balls>=CFG.balls){
+    try{ if(this._lastBall && S.balls!==this._lastBall+1){ console.warn('anticheat: ball count anomaly'); if(this.online && Net.db) Net.db.ref('anticheat/'+Net.uid).push({ts:Date.now(),issue:'ballcount',expected:this._lastBall+1,got:S.balls}); } if(runs>6){ console.warn('anticheat: impossible runs'); } }catch(e){}
+    this._lastBall=S.balls;
+    if(this.training){ S.balls=0; S.inn=1; S.batter='p1'; S.over=false; S.target=0; }
+    else if(out||S.balls>=CFG.balls){
       if(S.inn===1){ S.target=S.score[S.batter]+1; S.inn=2; S.batter=S.batter==='p1'?'p2':'p1'; S.balls=0; } 
       else S.over=true;
     }
     if(S.inn===2 && !S.over && S.score[S.batter]>=(S.target||0)){ S.over=true; }
     const ev={id:Date.now(),kind,by:this.me||'local',text:pick(LINES[kind]),runs}; 
+    try{ this.replay.push({t:Date.now(),type:'result',kind,runs,scoreP1:this.S.score.p1,scoreP2:this.S.score.p2,balls:this.S.balls}); }catch(e){}
     S.ev=ev; this.lastEv=ev.id;
     if(this.online) Net.set('state',S);
     try{ this.present(ev); }catch(e){ console.warn('present error', e); } 
+    if(this.S && this.S.over){ try{ const arr=JSON.parse(localStorage.getItem('bgl_replays')||'[]'); arr.push({date:Date.now(),events:this.replay.slice()}); if(arr.length>5) arr.shift(); localStorage.setItem('bgl_replays',JSON.stringify(arr)); }catch(e){} }
     setTimeout(()=>{ try{ this.afterBall(); }catch(e){ console.warn('afterBall error', e); } },3000);
   },
 
@@ -1090,10 +1134,15 @@ function renderStore(){
 }
 function renderLeaderboard(){ const list=$('lbList'); if(!list) return; list.textContent='Loading...';
   const render=(items)=>{ list.innerHTML=''; items.sort((a,b)=>(b.rating||0)-(a.rating||0)).slice(0,10).forEach((it,i)=>{ const div=document.createElement('div'); div.textContent=(i+1)+'. '+it.name+' — trophies '+ (it.trophies||0)+' · rating '+(it.rating||0); list.appendChild(div); }); };
-  if(typeof Net!=='undefined' && Net.db){ Net.db.ref('leaderboard').once('value').then(snap=>{ const v=snap.val()||{}; const arr=Object.values(v); if(!arr.length) arr.push({name:Game.username,trophies:Game.trophies,rating:Game.rating}); render(arr); }).catch(err=>{ console.warn('LB err',err); list.textContent='Leaderboard load failed (Firebase rules?). Showing local.'; setTimeout(()=>render([{name:Game.username,trophies:Game.trophies,rating:Game.rating}]),1500); }); }
+  if(typeof Net!=='undefined' && Net.db){ Net.db.ref('leaderboard/'+Game.season()).once('value').then(snap=>{ const v=snap.val()||{}; const arr=Object.values(v); if(!arr.length) arr.push({name:Game.username,trophies:Game.trophies,rating:Game.rating}); render(arr); }).catch(err=>{ console.warn('LB err',err); list.textContent='Leaderboard load failed (Firebase rules?). Showing local.'; setTimeout(()=>render([{name:Game.username,trophies:Game.trophies,rating:Game.rating}]),1500); }); }
   else { render([{name:Game.username,trophies:Game.trophies,rating:Game.rating}]); }
 }
+function renderReplays(){ const list=$('rpList'); if(!list) return; list.innerHTML=''; const arr=JSON.parse(localStorage.getItem('bgl_replays')||'[]'); if(!arr.length){ list.textContent='No replays yet.'; return; } arr.forEach((r,idx)=>{ const div=document.createElement('div'); div.textContent=(idx+1)+'. '+new Date(r.date).toLocaleString()+' — '+ (r.events||[]).length+' events'; list.appendChild(div); }); }
 refreshStats();
+function renderTournaments(){ const list=$('tList'); if(!list) return; list.textContent='Loading...'; if(typeof Net==='undefined' || !Net.db){ list.textContent='Offline'; return; } Net.db.ref('tournaments').once('value').then(snap=>{ const v=snap.val()||{}; list.innerHTML=''; Object.entries(v).forEach(([id,t])=>{ const div=document.createElement('div'); div.textContent=id+' — '+(t.name||'Tournament')+' ('+(t.players||[]).length+'/4)'; const btn=document.createElement('button'); btn.textContent='Join'; btn.onclick=()=>joinTournament(id); div.appendChild(btn); list.appendChild(div); }); if(!Object.keys(v).length) list.textContent='No tournaments.'; }).catch(e=>{ list.textContent='Error'; }); }
+function createTournament(){ if(typeof Net==='undefined' || !Net.db){ alert('Offline'); return; } const name=($('tName').value||'Tournament').trim(); const id='t'+Math.random().toString(36).slice(2,8); Net.db.ref('tournaments/'+id).set({name, players:[Game.username||'Player'], max:4, created:Date.now(), prizePool:0}); renderTournaments(); }
+function joinTournament(id){ if(typeof Net==='undefined' || !Net.db) return; Net.db.ref('tournaments/'+id+'/players').transaction(cur=>{ cur=Array.isArray(cur)?cur:[]; if(cur.length>=4 || cur.includes(Game.username||'Player')) return cur; cur.push(Game.username||'Player'); return cur; }); setTimeout(renderTournaments,500); }
+function renderPro(){ const list=$('proList'); if(!list) return; list.textContent='Loading...'; if(typeof Net==='undefined' || !Net.db){ list.textContent='Offline'; return; } Net.db.ref('leaderboard/'+Game.season()).once('value').then(snap=>{ const v=snap.val()||{}; const items=Object.values(v).filter(x=>(x.rating||0)>=1500).sort((a,b)=>(b.rating||0)-(a.rating||0)).slice(0,20); list.innerHTML=''; items.forEach((it,idx)=>{ const div=document.createElement('div'); div.textContent=(idx+1)+'. '+it.name+' — rating '+(it.rating||0); list.appendChild(div); }); if(!items.length) list.textContent='No pro players yet.'; }).catch(e=>{ list.textContent='Error'; }); }
 function renderLive(){ const list=$('liveList'); if(!list) return; list.textContent='Loading...';
   if(!Net.init()){ list.textContent='Firebase not configured.'; return; }
   Net.db.ref('live').once('value').then(snap=>{ const v=snap.val()||{}; const arr=Object.values(v).filter(x=>x&&x.code&&Date.now()-(x.ts||0)<3600000); list.innerHTML='';
@@ -1149,9 +1198,19 @@ $('mPlay').onclick=async()=>{ if(!ready) return; Sfx.init();
 };
 $('bCancelSearch').onclick=()=>{ try{ if(typeof Net!=='undefined') Net.cancelMatch(); }catch(e){} showPanel('menu'); };
 $('mCustom').onclick=()=>{ showPanel('customPanel'); };
+$('mTraining').onclick=()=>{ if(!ready) return; Sfx.init(); Game.training=true; Game.startTraining(); };
 $('mStore').onclick=()=>{ showPanel('storePanel'); refreshStats(); renderStore(); };
 $('mLeaderboard').onclick=()=>{ showPanel('leaderboardPanel'); renderLeaderboard(); };
 $('bBackLb').onclick=()=>{ showPanel('menu'); };
+$('mReplays').onclick=()=>{ showPanel('replayPanel'); renderReplays(); };
+$('bBackRp').onclick=()=>{ showPanel('menu'); };
+$('mTournaments').onclick=()=>{ showPanel('tournamentPanel'); renderTournaments(); };
+$('bBackT').onclick=()=>{ showPanel('menu'); };
+$('tCreate').onclick=()=>{ createTournament(); };
+$('mPro').onclick=()=>{ showPanel('proPanel'); renderPro(); };
+$('bBackPro').onclick=()=>{ showPanel('menu'); };
+$('mRegion').onclick=()=>{ const regions=['Asia','US','EU']; const i=regions.indexOf(Game.region); Game.region=regions[(i+1)%regions.length]; try{ localStorage.setItem('bgl_region',Game.region); }catch(e){} $('mRegion').textContent='Region: '+Game.region; };
+try{ $('mRegion').textContent='Region: '+Game.region; }catch(e){}
 $('mAbout').onclick=()=>{ showPanel('aboutPanel'); };
 $('bBackStore').onclick=()=>{ showPanel('menu'); };
 $('bBackAbout').onclick=()=>{ showPanel('menu'); };
