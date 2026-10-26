@@ -4,7 +4,10 @@
       "$room": {
         ".read": true,
         ".write": true,
-        ".indexOn": ["createdAt", "status"]
+        ".indexOn": [
+          "createdAt",
+          "status"
+        ]
       }
     },
     "matchmaking": {
@@ -22,7 +25,9 @@
     "live": {
       ".read": true,
       ".write": true,
-      ".indexOn": ["ts"]
+      ".indexOn": [
+        "ts"
+      ]
     },
     "users": {
       "$user": {
@@ -42,6 +47,24 @@
       "$user": {
         ".read": true,
         ".write": true
+      }
+    },
+    "tournaments": {
+      ".read": true,
+      ".write": true
+    },
+    "anticheat": {
+      ".read": "auth != null && auth.token.email == 'mdswampodsarkar@gmail.com'",
+      ".write": true
+    },
+    "events": {
+      ".read": true,
+      ".write": "auth != null && auth.token.email == 'mdswampodsarkar@gmail.com'"
+    },
+    "store": {
+      "items": {
+        ".read": true,
+        ".write": "auth != null && auth.token.email == 'mdswampodsarkar@gmail.com'"
       }
     }
   }
