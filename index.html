@@ -128,8 +128,8 @@ const FIREBASE_CONFIG = {
   appId: "1:1757763305:web:60971b6b571f1632618278",
   measurementId: "G-HLF7DK1R7R"
 };
-// Secondary/named Realtime Database instance ("hbe") used for this app's data.
-const HBE_DATABASE_URL = "https://bgl-77929-hbe-rtdb.asia-southeast1.firebasedatabase.app";
+// OPTIONAL secondary/named Realtime Database instance ("hbe"). Create it in Firebase Console first; then reference it with firebase.initializeApp(config, "hbe") and firebase.database(thatApp).
+// const HBE_DATABASE_URL = "https://bgl-77929-hbe-rtdb.asia-southeast1.firebasedatabase.app";
 const CFG = { g:16, e:.6, R:.12, wallH:3, fieldX:7.5, farZ:-24, backZ:13, hitZ:[3,7], balls:6, hitPos:[0,1.1,5.2], stall:{x0:-7.5,x1:-5.1,z0:-14.8,z1:-12.4,h:2.6} };
 const TIMES = {
   morning:   { bg:0x9fd4f0, fog:0xcfe8f5, fogNear:40, fogFar:130, hemiSky:0xfff4d6, hemiGround:0x8a7a5a, hemiIntensity:.95, sunColor:0xfff4d6, sunIntensity:1.0, sunPos:[-10,12,8], exposure:1.05, sky:['#7ec8e3','#f4d9a8','#ffe7c2'] },
@@ -639,7 +639,7 @@ const Net = {
   ok:false, db:null, ref:null, uid:'u_'+Math.random().toString(36).slice(2),
   init(){ if(this.ok) return true;
     try{ if(!window.firebase||FIREBASE_CONFIG.apiKey.startsWith('YOUR')) return false;
-      let _hbeApp; try{ _hbeApp=firebase.app('hbe'); }catch(e){ _hbeApp=firebase.initializeApp(Object.assign({},FIREBASE_CONFIG,{databaseURL:HBE_DATABASE_URL}),'hbe'); } this.db=firebase.database(_hbeApp); this.ok=true; return true; }catch(e){ console.warn(e); return false; } },
+      firebase.initializeApp(FIREBASE_CONFIG); this.db=firebase.database(); this.ok=true; return true; }catch(e){ console.warn(e); return false; } },
   setRef(code){ 
     this.offAll(); if(this.ref){ try{ this.ref.off(); }catch(e){} } 
     this.ref=this.db.ref('rooms/'+code); 
@@ -665,7 +665,6 @@ const Net = {
     const res=await this.db.ref('matchmaking/waiting').transaction(cur=>{
       if(!cur || (cur.ts && Date.now()-cur.ts>60000)){ return {uid, name:Game.username||'Player', ts:Date.now()}; }
       if(cur.uid===uid) return cur;
-      if(cur.name && cur.name===(Game.username||'Player')){ return {uid, name:Game.username||'Player', ts:Date.now()}; }
       opponentUid=cur.uid;
       return null;
     });
