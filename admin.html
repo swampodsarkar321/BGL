@@ -167,10 +167,10 @@ async function loadStore(){
     const snap=await db.ref('store/items').once('value');
     const v=snap.val()||{};
     let html='<h2>Store Items</h2>';
-    html+='<div><input id="sId" placeholder="id"><input id="sName" placeholder="name"><select id="sType"><option value="bat">bat</option><option value="jersey">jersey</option><option value="cap">cap</option></select><input id="sPrice" type="number" placeholder="price"><button class="action" onclick="createStoreItem()">Create</button></div>';
-    html+='<table><tr><th>ID</th><th>Name</th><th>Type</th><th>Price</th><th>Action</th></tr>';
+    html+='<div><input id="sId" placeholder="id"><input id="sName" placeholder="name"><select id="sType"><option value="bat">bat</option><option value="jersey">jersey</option><option value="cap">cap</option></select><input id="sPrice" type="number" placeholder="price"><input id="sColor" placeholder="color hex"><input id="sNumber" placeholder="jersey number"><button class="action" onclick="createStoreItem()">Create</button></div>';
+    html+='<table><tr><th>ID</th><th>Name</th><th>Type</th><th>Price</th><th>Color</th><th>Action</th></tr>';
     Object.entries(v).forEach(([id,it])=>{
-      html+='<tr><td>'+esc(id)+'</td><td>'+esc(it.name)+'</td><td>'+esc(it.type)+'</td><td>'+esc(it.price)+'</td><td><button class="action" onclick="deleteStoreItem(\''+esc(id)+'\')">Delete</button></td></tr>';
+      html+='<tr><td>'+esc(id)+'</td><td>'+esc(it.name)+'</td><td>'+esc(it.type)+'</td><td>'+esc(it.price)+'</td><td>'+esc(it.color)+'</td><td><button class="action" onclick="deleteStoreItem(\''+esc(id)+'\')">Delete</button></td></tr>';
     });
     html+='</table>';
     el.innerHTML=html;
@@ -181,7 +181,9 @@ async function createStoreItem(){
   const name=document.getElementById('sName').value.trim()||'Item';
   const type=document.getElementById('sType').value;
   const price=Number(document.getElementById('sPrice').value)||0;
-  await db.ref('store/items/'+id).set({id,name,type,price});
+  const color=document.getElementById('sColor').value.trim()||'';
+  const number=document.getElementById('sNumber').value.trim()||'';
+  await db.ref('store/items/'+id).set({id,name,type,price,color,number});
   loadStore();
 }
 async function deleteStoreItem(id){ if(!confirm('Delete '+id+'?')) return; await db.ref('store/items/'+id).remove(); loadStore(); }
