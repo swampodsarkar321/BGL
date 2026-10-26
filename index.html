@@ -100,6 +100,8 @@ body.slow::after{background:radial-gradient(ellipse at center,transparent 32%,rg
   <div id="storePanel" style="display:none">
     <h2>Store</h2>
     <p id="storeCoins">Coins: 0</p>
+    <button id="bFreeReward">Free Daily Reward 🎁</button>
+    <h3>Featured Offers</h3><div id="offerList">Starter Pack - 100 coins</div>
     <h3>Bats</h3><div id="batList"></div>
     <h3>Jerseys</h3><div id="jerseyList"></div>
     <h3>Caps</h3><div id="capList"></div>
@@ -1252,6 +1254,7 @@ $('mRegion').onclick=()=>{ const regions=['Asia','US','EU']; const i=regions.ind
 try{ $('mRegion').textContent='Region: '+Game.region; }catch(e){}
 $('mAbout').onclick=()=>{ showPanel('aboutPanel'); };
 $('bBackStore').onclick=()=>{ showPanel('menu'); };
+$('bFreeReward').onclick=()=>{ Game.openKitBag(); };
 $('bBackAbout').onclick=()=>{ showPanel('menu'); };
 $('mExit').onclick=()=>{ if(Game.username && typeof Net!=='undefined' && Net.db) try{ Net.db.ref('usernames/'+Game.username).remove(); }catch(e){} Game.username=''; try{localStorage.removeItem('bgl_name');}catch(e){} Game.trophies=0; Game.rating=1000; Game.coins=0; Game.items=['bat_basic','jersey_basic','cap_basic']; Game.equipped={bat:'bat_basic',jersey:'jersey_basic',cap:'cap_basic'}; Game.skins=['Classic']; Game.skin='Classic'; Game.saveTrophies(); Game.saveCoins(); Game.saveItems(); Game.saveSkins(); try{localStorage.setItem('bgl_skin','Classic');}catch(e){} refreshStats(); const nm=$('nameModal'); if(nm) nm.style.display='flex'; const w=$('welcome'); if(w) w.textContent=''; };
 $('bOnline').onclick=async()=>{ if(!ready) return; Sfx.init();
