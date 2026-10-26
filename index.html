@@ -533,12 +533,12 @@ const GFX = {
     this.fielders=[[-4,-3,0x2a6f9a],[4,-4,0xffc93c],[-4,4,0x00a19b],[4,3,0xe4007c]].map(([x,z,c],i)=>{
       const f=new Figure(c,x,z,false,Math.atan2(x-.2,z-6.9)); f.ready=true; f.name=NAMES[i]; f.g.scale.setScalar(.94+R_()*.12); f.reset(); return f; });
     const bc=document.createElement('canvas'); bc.width=128; bc.height=64; const bx=bc.getContext('2d'); bx.fillStyle='#d6ff3a'; bx.fillRect(0,0,128,64); bx.fillStyle='#fff'; bx.fillRect(0,28,128,7); bx.fillStyle='rgba(0,0,0,.14)'; for(let i=0;i<400;i++) bx.fillRect(Math.random()*128,Math.random()*64,1,1);
-    this.ball=new THREE.Mesh(new THREE.SphereGeometry(CFG.R*2.2,24,16),new THREE.MeshStandardMaterial({map:tex(bc),roughness:.4,emissive:0x3a3a00,emissiveIntensity:.35})); this.ball.castShadow=true; this.scene.add(this.ball);
-    const band=new THREE.Mesh(new THREE.TorusGeometry(CFG.R*1.4,.015,5,14),mat(0x111111)); this.ball.add(band);
+    this.ball=new THREE.Mesh(new THREE.SphereGeometry(CFG.R*1.4,24,16),new THREE.MeshStandardMaterial({map:tex(bc),roughness:.4,emissive:0x3a3a00,emissiveIntensity:.35})); this.ball.castShadow=true; this.scene.add(this.ball);
+    const band=new THREE.Mesh(new THREE.TorusGeometry(CFG.R*1.0,.015,5,14),mat(0x111111)); this.ball.add(band);
     this.shadow=new THREE.Mesh(new THREE.CircleGeometry(.18,10),new THREE.MeshBasicMaterial({color:0,transparent:true,opacity:.4}));
     this.shadow.rotation.x=-Math.PI/2; this.scene.add(this.shadow); this.ball.visible=this.shadow.visible=false;
     this.tball=new THREE.Mesh(this.ball.geometry,this.ball.material); this.tball.visible=false; this.scene.add(this.tball); this.tb=null;
-    this.th=[]; this.trail=[]; const tg=new THREE.SphereGeometry(CFG.R*1.3,6,5);
+    this.th=[]; this.trail=[]; const tg=new THREE.SphereGeometry(CFG.R*1.0,6,5);
     for(let i=0;i<18;i++){ const m=new THREE.Mesh(tg,new THREE.MeshBasicMaterial({color:0xffe45c,transparent:true,opacity:0,blending:THREE.AdditiveBlending,depthWrite:false,fog:false})); m.visible=false; this.scene.add(m); this.trail.push(m); }
   },
   updTrail(){
