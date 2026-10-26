@@ -81,6 +81,7 @@ body.slow::after{background:radial-gradient(ellipse at center,transparent 32%,rg
   </div>
   <div id="customPanel" style="display:none">
     <input id="room" placeholder="Room code (optional)" maxlength="16">
+    <select id="bowlerType"><option value="pace">Pace bowler</option><option value="spin">Spin bowler</option><option value="swing">Swing bowler</option></select>
     <button id="bOnline">Join / Find Match</button>
     <button id="bSpectate">Watch this room live 👁</button>
     <div id="msg"></div>
@@ -637,7 +638,7 @@ const GFX = {
 /* ===== PHYSICS ===== */
 const Sim = {
   pos:new THREE.Vector3(0,-5,0), v:new THREE.Vector3(), mode:'idle', bounces:0, onEnd:null,
-  bowl(){ this.pos.set((Math.random()-.5)*.6,1.8,-7.5); this.v.set((Math.random()-.5)*.5,3,11+Math.random()*3); this.mode='bowl'; this.bounces=0; },
+  bowl(type){ type=type||'pace'; let spd=11+Math.random()*3, vx=(Math.random()-.5)*.5, vy=3; if(type==='spin'){ spd=8+Math.random()*2; vx=(Math.random()-.5)*1.2; vy=2.4; } if(type==='swing'){ spd=10+Math.random()*2.5; vx=(Math.random()-.5)*1.0; vy=2.8; } this.pos.set((Math.random()-.5)*.6,1.8,-7.5); this.v.set(vx,vy,spd); this.mode='bowl'; this.bounces=0; },
   canHit(){ return this.mode==='bowl' && this.pos.z>CFG.hitZ[0] && this.pos.z<CFG.hitZ[1] && this.pos.y<2.6; },
   hit(angle,power,lift,mul=1,style='drive',dir=0){
     this.pos.set(...CFG.hitPos); const sp=(8+power*24)*mul, c=Math.cos(angle), s=Math.sin(angle);
@@ -726,7 +727,7 @@ const __MENU_HTML__ = ($('card') && $('card').innerHTML) || '';
 
 /* ===== GAME LOGIC (fully fixed) ===== */
 const Game = {
-  me:null, spectator:false, region:(function(){try{return localStorage.getItem('bgl_region')||'Asia';}catch(e){return 'Asia';}})(), online:false, training:false, replay:[], _lastBall:0, storeItems:null, S:null, lastEv:0, lastShot:0, started:false, vsShown:false, _afterBallLock:false, timeOfDay:'afternoon', envType:'city', roadType:'paved', hasRiver:false, roomCode:null, forfeitHandled:false, username:(function(){try{return localStorage.getItem('bgl_name')||'';}catch(e){return '';}})(), trophies:(function(){try{return Number(localStorage.getItem('bgl_trophies'))||0;}catch(e){return 0;}})(), rating:(function(){try{return Number(localStorage.getItem('bgl_rating'))||1000;}catch(e){return 1000;}})(), coins:(function(){try{return Number(localStorage.getItem('bgl_coins'))||0;}catch(e){return 0;}})(), items:(function(){try{const v=JSON.parse(localStorage.getItem('bgl_items')); return Array.isArray(v)?v:['bat_basic','jersey_basic','cap_basic'];}catch(e){return ['bat_basic','jersey_basic','cap_basic'];}})(), equipped:(function(){try{const v=JSON.parse(localStorage.getItem('bgl_equipped')); return (v&&typeof v==='object')?v:{bat:'bat_basic',jersey:'jersey_basic',cap:'cap_basic'};}catch(e){return {bat:'bat_basic',jersey:'jersey_basic',cap:'cap_basic'};}})(), skins:(function(){try{const v=JSON.parse(localStorage.getItem('bgl_skins')); return (Array.isArray(v)&&v.length)?v:['Classic'];}catch(e){return ['Classic'];}})(), skin:(function(){try{return localStorage.getItem('bgl_skin')||'Classic';}catch(e){return 'Classic';}})(), pNames:{},
+  me:null, spectator:false, region:(function(){try{return localStorage.getItem('bgl_region')||'Asia';}catch(e){return 'Asia';}})(), online:false, training:false, replay:[], _lastBall:0, storeItems:null, oppBowlerType:'pace', S:null, lastEv:0, lastShot:0, started:false, vsShown:false, _afterBallLock:false, timeOfDay:'afternoon', envType:'city', roadType:'paved', hasRiver:false, roomCode:null, forfeitHandled:false, username:(function(){try{return localStorage.getItem('bgl_name')||'';}catch(e){return '';}})(), trophies:(function(){try{return Number(localStorage.getItem('bgl_trophies'))||0;}catch(e){return 0;}})(), rating:(function(){try{return Number(localStorage.getItem('bgl_rating'))||1000;}catch(e){return 1000;}})(), coins:(function(){try{return Number(localStorage.getItem('bgl_coins'))||0;}catch(e){return 0;}})(), items:(function(){try{const v=JSON.parse(localStorage.getItem('bgl_items')); return Array.isArray(v)?v:['bat_basic','jersey_basic','cap_basic'];}catch(e){return ['bat_basic','jersey_basic','cap_basic'];}})(), equipped:(function(){try{const v=JSON.parse(localStorage.getItem('bgl_equipped')); return (v&&typeof v==='object')?v:{bat:'bat_basic',jersey:'jersey_basic',cap:'cap_basic'};}catch(e){return {bat:'bat_basic',jersey:'jersey_basic',cap:'cap_basic'};}})(), skins:(function(){try{const v=JSON.parse(localStorage.getItem('bgl_skins')); return (Array.isArray(v)&&v.length)?v:['Classic'];}catch(e){return ['Classic'];}})(), skin:(function(){try{return localStorage.getItem('bgl_skin')||'Classic';}catch(e){return 'Classic';}})(), pNames:{},
 
   season(){ return new Date().toISOString().slice(0,7); },
   fresh:()=>({inn:1,batter:'p1',balls:0,score:{p1:0,p2:0},over:false,ev:null,target:0,timeOfDay:Game.timeOfDay,envType:Game.envType,roadType:Game.roadType,hasRiver:Game.hasRiver}),
@@ -878,7 +879,7 @@ const Game = {
     try{ GFX.batter.setGear(this.gearOf(this.S.batter)); GFX.bowler.setGear(this.gearOf(this.S.batter==='p1'?'p2':'p1')); }catch(e){ console.warn('gear',e); }
     if(!this.canBat()){
       UI.hint(this.spectator?'👁 লাইভ দেখছো...':'প্রতিপক্ষ ব্যাট করছে...');
-      if(this.online){ setTimeout(()=>{ try{ GFX.bowler.runUp(); }catch(e){} },800); setTimeout(()=>{ try{ Sim.onEnd=null; Sim.bowl(); }catch(e){} },1300); }
+      if(this.online){ setTimeout(()=>{ try{ GFX.bowler.runUp(); }catch(e){} },800); setTimeout(()=>{ try{ Sim.onEnd=null; Sim.bowl(Game.oppBowlerType); }catch(e){} },1300); }
       return;
     }
     UI.hint('বোলার রেডি...'); 
@@ -1219,6 +1220,7 @@ $('bBackAbout').onclick=()=>{ showPanel('menu'); };
 $('mExit').onclick=()=>{ if(Game.username && typeof Net!=='undefined' && Net.db) try{ Net.db.ref('usernames/'+Game.username).remove(); }catch(e){} Game.username=''; try{localStorage.removeItem('bgl_name');}catch(e){} Game.trophies=0; Game.rating=1000; Game.coins=0; Game.items=['bat_basic','jersey_basic','cap_basic']; Game.equipped={bat:'bat_basic',jersey:'jersey_basic',cap:'cap_basic'}; Game.skins=['Classic']; Game.skin='Classic'; Game.saveTrophies(); Game.saveCoins(); Game.saveItems(); Game.saveSkins(); try{localStorage.setItem('bgl_skin','Classic');}catch(e){} refreshStats(); const nm=$('nameModal'); if(nm) nm.style.display='flex'; const w=$('welcome'); if(w) w.textContent=''; };
 $('bOnline').onclick=async()=>{ if(!ready) return; Sfx.init();
   const code=$('room').value.trim().replace(/[^\w-]/g,''), msg=$('msg');
+  const bt=$('bowlerType'); if(bt) Game.oppBowlerType=bt.value;
   if(!Net.init()){ msg.textContent='Firebase not configured.'; return; }
   msg.textContent = code ? 'Joining room...' : 'Finding opponent...';
   let ok;
