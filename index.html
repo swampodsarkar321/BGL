@@ -825,7 +825,7 @@ const Game = {
     Net.on('shot', sh=>this.onShot(sh));
     Net.on('emote', e=>this.onEmote(e));
     Net.on('spectators', v=>this.onSpecCount(v));
-    try{ Emote.hide(); const rl=$('rules'); if(rl) rl.style.display='none'; }catch(e){}
+    try{ Emote.hide(); const em=$('emotes'); if(em) em.style.display='none'; const rl=$('rules'); if(rl) rl.style.display='none'; }catch(e){}
     UI.hint('👁 লাইভ দেখছো...');
     return true;
   },
@@ -838,7 +838,11 @@ const Game = {
     if(this.S.over) return; 
     GFX.batter.reset(); GFX.resetStumps(); UI.hud(this.S,this.names());
     try{ GFX.batter.setGear(this.gearOf(this.S.batter)); GFX.bowler.setGear(this.gearOf(this.S.batter==='p1'?'p2':'p1')); }catch(e){ console.warn('gear',e); }
-    if(!this.canBat()){ UI.hint(this.spectator?'👁 লাইভ দেখছো...':'প্রতিপক্ষ ব্যাট করছে...'); return; }
+    if(!this.canBat()){
+      UI.hint(this.spectator?'👁 লাইভ দেখছো...':'প্রতিপক্ষ ব্যাট করছে...');
+      if(this.online){ setTimeout(()=>{ try{ GFX.bowler.runUp(); }catch(e){} },800); setTimeout(()=>{ try{ Sim.onEnd=null; Sim.bowl(); }catch(e){} },1300); }
+      return;
+    }
     UI.hint('বোলার রেডি...'); 
     setTimeout(()=>GFX.bowler.runUp(),800); 
     setTimeout(()=>{ 
@@ -929,7 +933,12 @@ const Game = {
 
       UI.hint(''); 
       try{ 
-        UI.lobby(true,`<h1>${res}</h1><p style="font-size:18px;font-weight:800">${detail}</p><p style="opacity:.7;font-size:13px">${tod} · ${env}</p><button onclick="Game.playAgain()">Play Again</button><button onclick="Game.toMenu()">Main Menu</button>`); 
+         if(this.spectator){
+           UI.lobby(true,`<h1>Match Finished</h1><p style="font-size:18px;font-weight:800">${detail}</p><p style="opacity:.7;font-size:13px">${tod} · ${env}</p><button onclick="Game.toMenu()">Main Menu</button>`);
+         } else {
+           UI.lobby(true,`<h1>${res}</h1><p style="font-size:18px;font-weight:800">${detail}</p><p style="opacity:.7;font-size:13px">${tod} · ${env}</p><button onclick="Game.playAgain()">Play Again</button><button onclick="Game.toMenu()">Main Menu</button>`);
+         }
+
       }catch(e){ console.warn("lobby error", e); }
 
       { const _wd=(this.me==='p1'||!this.online)?8000:12000; 
