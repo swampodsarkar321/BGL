@@ -110,6 +110,11 @@ body.slow::after{background:radial-gradient(ellipse at center,transparent 32%,rg
     <div id="lbList"></div>
     <button id="bBackLb">Back</button>
   </div>
+  <div id="profilePanel" style="display:none">
+    <h2>Profile</h2>
+    <div id="profileInfo"></div>
+    <button id="bBackProfile">Back</button>
+  </div>
   <div id="replayPanel" style="display:none">
     <h2>Replays</h2>
     <div id="rpList"></div>
@@ -732,7 +737,7 @@ const __MENU_HTML__ = ($('card') && $('card').innerHTML) || '';
 
 /* ===== GAME LOGIC (fully fixed) ===== */
 const Game = {
-  me:null, spectator:false, region:(function(){try{return localStorage.getItem('bgl_region')||'Asia';}catch(e){return 'Asia';}})(), online:false, training:false, replay:[], _lastBall:0, storeItems:null, oppBowlerType:'pace', S:null, lastEv:0, lastShot:0, started:false, vsShown:false, _afterBallLock:false, timeOfDay:'afternoon', envType:'city', roadType:'paved', hasRiver:false, roomCode:null, forfeitHandled:false, username:(function(){try{return localStorage.getItem('bgl_name')||'';}catch(e){return '';}})(), trophies:(function(){try{return Number(localStorage.getItem('bgl_trophies'))||0;}catch(e){return 0;}})(), rating:(function(){try{return Number(localStorage.getItem('bgl_rating'))||1000;}catch(e){return 1000;}})(), coins:(function(){try{return Number(localStorage.getItem('bgl_coins'))||0;}catch(e){return 0;}})(), items:(function(){try{const v=JSON.parse(localStorage.getItem('bgl_items')); return Array.isArray(v)?v:['bat_basic','jersey_basic','cap_basic'];}catch(e){return ['bat_basic','jersey_basic','cap_basic'];}})(), equipped:(function(){try{const v=JSON.parse(localStorage.getItem('bgl_equipped')); return (v&&typeof v==='object')?v:{bat:'bat_basic',jersey:'jersey_basic',cap:'cap_basic'};}catch(e){return {bat:'bat_basic',jersey:'jersey_basic',cap:'cap_basic'};}})(), skins:(function(){try{const v=JSON.parse(localStorage.getItem('bgl_skins')); return (Array.isArray(v)&&v.length)?v:['Classic'];}catch(e){return ['Classic'];}})(), skin:(function(){try{return localStorage.getItem('bgl_skin')||'Classic';}catch(e){return 'Classic';}})(), pNames:{},
+  me:null, spectator:false, region:(function(){try{return localStorage.getItem('bgl_region')||'Asia';}catch(e){return 'Asia';}})(), online:false, training:false, replay:[], _lastBall:0, storeItems:null, oppBowlerType:'pace', S:null, matches:(function(){try{return Number(localStorage.getItem('bgl_matches'))||0;}catch(e){return 0;}})(), wins:(function(){try{return Number(localStorage.getItem('bgl_wins'))||0;}catch(e){return 0;}})(), runsTotal:(function(){try{return Number(localStorage.getItem('bgl_runs'))||0;}catch(e){return 0;}})(), level:(function(){try{return Number(localStorage.getItem('bgl_level'))||1;}catch(e){return 1;}})(), xp:(function(){try{return Number(localStorage.getItem('bgl_xp'))||0;}catch(e){return 0;}})(), lastEv:0, lastShot:0, started:false, vsShown:false, _afterBallLock:false, timeOfDay:'afternoon', envType:'city', roadType:'paved', hasRiver:false, roomCode:null, forfeitHandled:false, username:(function(){try{return localStorage.getItem('bgl_name')||'';}catch(e){return '';}})(), trophies:(function(){try{return Number(localStorage.getItem('bgl_trophies'))||0;}catch(e){return 0;}})(), rating:(function(){try{return Number(localStorage.getItem('bgl_rating'))||1000;}catch(e){return 1000;}})(), coins:(function(){try{return Number(localStorage.getItem('bgl_coins'))||0;}catch(e){return 0;}})(), items:(function(){try{const v=JSON.parse(localStorage.getItem('bgl_items')); return Array.isArray(v)?v:['bat_basic','jersey_basic','cap_basic'];}catch(e){return ['bat_basic','jersey_basic','cap_basic'];}})(), equipped:(function(){try{const v=JSON.parse(localStorage.getItem('bgl_equipped')); return (v&&typeof v==='object')?v:{bat:'bat_basic',jersey:'jersey_basic',cap:'cap_basic'};}catch(e){return {bat:'bat_basic',jersey:'jersey_basic',cap:'cap_basic'};}})(), skins:(function(){try{const v=JSON.parse(localStorage.getItem('bgl_skins')); return (Array.isArray(v)&&v.length)?v:['Classic'];}catch(e){return ['Classic'];}})(), skin:(function(){try{return localStorage.getItem('bgl_skin')||'Classic';}catch(e){return 'Classic';}})(), pNames:{},
 
   season(){ return new Date().toISOString().slice(0,7); },
   fresh:()=>({inn:1,batter:'p1',balls:0,score:{p1:0,p2:0},over:false,ev:null,target:0,timeOfDay:Game.timeOfDay,envType:Game.envType,roadType:Game.roadType,hasRiver:Game.hasRiver}),
@@ -764,6 +769,8 @@ const Game = {
 
   saveTrophies(){ try{ localStorage.setItem('bgl_trophies', String(this.trophies)); localStorage.setItem('bgl_rating', String(this.rating)); }catch(e){} },
   saveSkins(){ try{ localStorage.setItem('bgl_skins', JSON.stringify(this.skins)); }catch(e){} },
+  saveProfile(){ try{ localStorage.setItem('bgl_matches',this.matches); localStorage.setItem('bgl_wins',this.wins); localStorage.setItem('bgl_runs',this.runsTotal); localStorage.setItem('bgl_level',this.level); localStorage.setItem('bgl_xp',this.xp); }catch(e){} },
+  openProfile(){ const p=$('profilePanel'); if(p){ p.style.display='block'; const info=$('profileInfo'); if(info) info.innerHTML='Name: '+ (this.username||'Player') +'<br>Level: '+this.level+' (XP '+this.xp+')<br>Matches: '+this.matches+' Wins: '+this.wins+' WinRate: '+(this.matches?Math.round(this.wins/this.matches*100):0)+'%<br>Total Runs: '+this.runsTotal+'<br>Trophies: '+this.trophies+' Coins: '+this.coins; } const b=$('bBackProfile'); if(b) b.onclick=()=>{ p.style.display='none'; }; },
   openKitBag(){ const r=Math.random(); let msg=''; if(r<0.5){ const c=10+Math.floor(Math.random()*41); this.coins+=c; this.saveCoins(); msg='You got '+c+' coins!'; }
     else if(r<0.7){ const ids=(this.storeItems||STORE_ITEMS).map(x=>x.id); const id=ids[Math.floor(Math.random()*ids.length)]; if(!this.items.includes(id)){ this.items.push(id); this.saveItems(); msg='New item unlocked: '+id; } else { this.coins+=25; this.saveCoins(); msg='Duplicate item -> 25 coins'; } }
     else if(r<0.85){ const t=5+Math.floor(Math.random()*16); this.trophies+=t; this.saveTrophies(); msg='You got '+t+' trophies!'; }
@@ -930,8 +937,10 @@ const Game = {
 
   resolve(kind){
     const d=Math.hypot(Sim.pos.x,Sim.pos.z-5), S=this.S, out=OUTS.includes(kind);
+    const wasOver = !!(S && S.over);
     const runs={six:6,four:4,pitch:1,settle:d>9?2:1}[kind]||0;
     S.score[S.batter]+=runs; S.balls++;
+    this.runsTotal += runs; this.xp += runs*2 + (out?0:1);
     try{ if(this._lastBall && S.balls!==this._lastBall+1){ console.warn('anticheat: ball count anomaly'); if(this.online && Net.db) Net.db.ref('anticheat/'+Net.uid).push({ts:Date.now(),issue:'ballcount',expected:this._lastBall+1,got:S.balls}); } if(runs>6){ console.warn('anticheat: impossible runs'); } }catch(e){}
     this._lastBall=S.balls;
     if(this.training){ S.balls=0; S.inn=1; S.batter='p1'; S.over=false; S.target=0; }
@@ -940,6 +949,7 @@ const Game = {
       else S.over=true;
     }
     if(S.inn===2 && !S.over && S.score[S.batter]>=(S.target||0)){ S.over=true; }
+    if(!wasOver && S.over && !this.training){ this.matches++; const iWon = this.me==='p2' ? (S.score.p2>S.score.p1) : (S.score.p1>S.score.p2); if(iWon) this.wins++; this.saveProfile(); }
     const ev={id:Date.now(),kind,by:this.me||'local',text:pick(LINES[kind]),runs}; 
     try{ this.replay.push({t:Date.now(),type:'result',kind,runs,scoreP1:this.S.score.p1,scoreP2:this.S.score.p2,balls:this.S.balls}); }catch(e){}
     S.ev=ev; this.lastEv=ev.id;
@@ -1254,7 +1264,7 @@ $('bSpectate').onclick=async()=>{ if(!ready) return; Sfx.init();
 
 $('mShare').onclick=async()=>{ const url=location.href; try{ if(navigator.share){ await navigator.share({title:'Bangladesh Gully League',text:'Play gully cricket with me!',url}); } else { await navigator.clipboard.writeText(url); alert('Link copied!'); } }catch(e){} };
 $('mKit').onclick=()=>{ Game.openKitBag(); };
-document.querySelectorAll('#bottomNav button').forEach(b=>{ b.onclick=()=>{ document.querySelectorAll('#bottomNav button').forEach(x=>x.classList.remove('active')); b.classList.add('active'); const tab=b.dataset.tab; if(tab==='home') Game.toMenu(); else alert(tab+' screen coming soon'); }; });
+document.querySelectorAll('#bottomNav button').forEach(b=>{ b.onclick=()=>{ document.querySelectorAll('#bottomNav button').forEach(x=>x.classList.remove('active')); b.classList.add('active'); const tab=b.dataset.tab; if(tab==='home') Game.toMenu(); else if(tab==='profile') Game.openProfile(); else if(tab==='store'){ const sp=$('storePanel'); if(sp) sp.style.display='block'; } else alert(tab+' screen coming soon'); }; });
 
 }
 bindMenu();
