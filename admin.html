@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>BGL Admin Panel</title>
+<style>
+body{font-family:system-ui,sans-serif;margin:0;background:#1b1a22;color:#fff4d6}
+header{background:#e4007c;padding:12px 16px;font-weight:800}
+.container{max-width:1100px;margin:0 auto;padding:16px}
+.tabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+.tabs button{padding:8px 12px;border:none;border-radius:8px;background:#3d5a80;color:#fff;cursor:pointer;font-weight:700}
+.tabs button.active{background:#00a19b}
+.panel{background:#2b2a33;border-radius:12px;padding:16px;margin-bottom:16px}
+input,textarea,select{width:100%;padding:8px;margin:6px 0;border-radius:8px;border:2px solid #555;background:#111;color:#fff}
+button.action{background:#00a19b;color:#fff;border:none;padding:8px 12px;border-radius:8px;cursor:pointer;font-weight:700;margin:4px 0}
+table{width:100%;border-collapse:collapse}
+th,td{border:1px solid #555;padding:8px;font-size:13px}
+th{background:#3d5a80}
+.login{max-width:360px;margin:80px auto;background:#2b2a33;padding:24px;border-radius:12px}
+</style>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+</head>
+<body>
+<header>BGL Admin Panel</header>
+<div class="container">
+  <div id="login" class="login">
+    <h2>Admin Login</h2>
+    <input id="pw" type="password" placeholder="Admin password">
+    <button class="action" onclick="login()">Login</button>
+    <p id="lmsg"></p>
+  </div>
+  <div id="app" style="display:none">
+    <div class="tabs">
+      <button class="tab active" data-tab="dashboard">Dashboard</button>
+      <button class="tab" data-tab="users">Users</button>
+      <button class="tab" data-tab="tournaments">Tournaments</button>
+      <button class="tab" data-tab="events">Events</button>
+      <button class="tab" data-tab="store">Store Items</button>
+    </div>
+    <div id="dashboard" class="panel"></div>
+    <div id="users" class="panel" style="display:none"></div>
+    <div id="tournaments" class="panel" style="display:none"></div>
+    <div id="events" class="panel" style="display:none"></div>
+    <div id="store" class="panel" style="display:none"></div>
+  </div>
+</div>
+
+<script>
+const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyCF-ucNWWYuP2bN8mLzZePlHzmaU5-hcBs",
+  authDomain: "bgl-77929.firebaseapp.com",
+  databaseURL: "https://bgl-77929-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "bgl-77929",
+  storageBucket: "bgl-77929.firebasestorage.app",
+  messagingSenderId: "1757763305",
+  appId: "1:1757763305:web:0000000000000000000000"
+};
+let db=null;
+function initDb(){
+  try{ if(!window.firebase) return false; firebase.initializeApp(FIREBASE_CONFIG); db=firebase.database(); return true; }catch(e){ console.warn(e); return false; }
+}
+function login(){
+  const pw=document.getElementById('pw').value;
+  if(pw!=='admin123'){ document.getElementById('lmsg').textContent='Wrong password'; return; }
+  if(!initDb()){ document.getElementById('lmsg').textContent='Firebase init failed'; return; }
+  document.getElementById('login').style.display='none';
+  document.getElementById('app').style.display='block';
+  loadAll();
+}
+document.querySelectorAll('.tab').forEach(b=>b.addEventListener('click',()=>{
+  document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
+  b.classList.add('active');
+  ['dashboard','users','tournaments','events','store'].forEach(t=>{ const el=document.getElementById(t); if(el) el.style.display = t===b.dataset.tab?'block':'none'; });
+}));
+function esc(s){ return String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+async function loadAll(){ loadDashboard(); loadUsers(); loadTournaments(); loadEvents(); loadStore(); }
+async function loadDashboard(){
+  const el=document.getElementById('dashboard');
+  try{
+    const [t,u,e,st]=await Promise.all([
+      db.ref('tournaments').once('value'),
+      db.ref('leaderboard').once('value'),
+      db.ref('events').once('value'),
+      db.ref('store/items').once('value')
+    ]);
+    const tc=t.val()?Object.keys(t.val()).length:0;
+    const uc=u.val()?Object.keys(u.val()).length:0;
+    const ec=e.val()?Object.keys(e.val()).length:0;
+    const sc=st.val()?Object.keys(st.val()).length:0;
+    el.innerHTML='<h2>Dashboard</h2><p>Tournaments: '+tc+'</p><p>Leaderboard seasons: '+uc+'</p><p>Events: '+ec+'</p><p>Store items: '+sc+'</p>';
+  }catch(err){ el.innerHTML='Error: '+esc(err.message); }
+}
+async function loadUsers(){
+  const el=document.getElementById('users');
+  try{
+    const snap=await db.ref('leaderboard').once('value');
+    const v=snap.val()||{};
+    let html='<h2>Users (by season)</h2>';
+    Object.entries(v).forEach(([season,users])=>{
+      html+='<h3>'+esc(season)+'</h3><table><tr><th>Name</th><th>Trophies</th><th>Rating</th></tr>';
+      Object.values(users||{}).forEach(u=>{ html+='<tr><td>'+esc(u.name)+'</td><td>'+esc(u.trophies)+'</td><td>'+esc(u.rating)+'</td></tr>'; });
+      html+='</table>';
+    });
+    el.innerHTML=html || 'No users';
+  }catch(err){ el.innerHTML='Error: '+esc(err.message); }
+}
+async function loadTournaments(){
+  const el=document.getElementById('tournaments');
+  try{
+    const snap=await db.ref('tournaments').once('value');
+    const v=snap.val()||{};
+    let html='<h2>Tournaments</h2>';
+    html+='<div><input id="tName" placeholder="Name"><input id="tMax" type="number" value="4" placeholder="Max players"><button class="action" onclick="createTournament()">Create</button></div>';
+    html+='<table><tr><th>ID</th><th>Name</th><th>Players</th><th>Action</th></tr>';
+    Object.entries(v).forEach(([id,t])=>{
+      html+='<tr><td>'+esc(id)+'</td><td>'+esc(t.name)+'</td><td>'+esc((t.players||[]).join(', '))+'</td><td><button class="action" onclick="deleteTournament(\''+esc(id)+'\')">Delete</button></td></tr>';
+    });
+    html+='</table>';
+    el.innerHTML=html;
+  }catch(err){ el.innerHTML='Error: '+esc(err.message); }
+}
+async function createTournament(){
+  const name=document.getElementById('tName').value.trim()||'Tournament';
+  const max=Number(document.getElementById('tMax').value)||4;
+  const id='t'+Math.random().toString(36).slice(2,8);
+  await db.ref('tournaments/'+id).set({name,players:[],max,created:Date.now(),prizePool:0});
+  loadTournaments();
+}
+async function deleteTournament(id){ if(!confirm('Delete '+id+'?')) return; await db.ref('tournaments/'+id).remove(); loadTournaments(); }
+async function loadEvents(){
+  const el=document.getElementById('events');
+  try{
+    const snap=await db.ref('events').once('value');
+    const v=snap.val()||{};
+    let html='<h2>Events</h2>';
+    html+='<div><input id="eTitle" placeholder="Title"><textarea id="eDesc" placeholder="Description"></textarea><input id="eDate" type="date"><input id="eReward" placeholder="Reward"><button class="action" onclick="createEvent()">Create</button></div>';
+    html+='<table><tr><th>ID</th><th>Title</th><th>Date</th><th>Reward</th><th>Action</th></tr>';
+    Object.entries(v).forEach(([id,e])=>{
+      html+='<tr><td>'+esc(id)+'</td><td>'+esc(e.title)+'</td><td>'+esc(e.date)+'</td><td>'+esc(e.reward)+'</td><td><button class="action" onclick="deleteEvent(\''+esc(id)+'\')">Delete</button></td></tr>';
+    });
+    html+='</table>';
+    el.innerHTML=html;
+  }catch(err){ el.innerHTML='Error: '+esc(err.message); }
+}
+async function createEvent(){
+  const title=document.getElementById('eTitle').value.trim()||'Event';
+  const desc=document.getElementById('eDesc').value.trim();
+  const date=document.getElementById('eDate').value;
+  const reward=document.getElementById('eReward').value.trim();
+  const id='e'+Math.random().toString(36).slice(2,8);
+  await db.ref('events/'+id).set({title,desc,date,reward,created:Date.now()});
+  loadEvents();
+}
+async function deleteEvent(id){ if(!confirm('Delete '+id+'?')) return; await db.ref('events/'+id).remove(); loadEvents(); }
+async function loadStore(){
+  const el=document.getElementById('store');
+  try{
+    const snap=await db.ref('store/items').once('value');
+    const v=snap.val()||{};
+    let html='<h2>Store Items</h2>';
+    html+='<div><input id="sId" placeholder="id"><input id="sName" placeholder="name"><select id="sType"><option value="bat">bat</option><option value="jersey">jersey</option><option value="cap">cap</option></select><input id="sPrice" type="number" placeholder="price"><button class="action" onclick="createStoreItem()">Create</button></div>';
+    html+='<table><tr><th>ID</th><th>Name</th><th>Type</th><th>Price</th><th>Action</th></tr>';
+    Object.entries(v).forEach(([id,it])=>{
+      html+='<tr><td>'+esc(id)+'</td><td>'+esc(it.name)+'</td><td>'+esc(it.type)+'</td><td>'+esc(it.price)+'</td><td><button class="action" onclick="deleteStoreItem(\''+esc(id)+'\')">Delete</button></td></tr>';
+    });
+    html+='</table>';
+    el.innerHTML=html;
+  }catch(err){ el.innerHTML='Error: '+esc(err.message); }
+}
+async function createStoreItem(){
+  const id=document.getElementById('sId').value.trim()||('item_'+Math.random().toString(36).slice(2,6));
+  const name=document.getElementById('sName').value.trim()||'Item';
+  const type=document.getElementById('sType').value;
+  const price=Number(document.getElementById('sPrice').value)||0;
+  await db.ref('store/items/'+id).set({id,name,type,price});
+  loadStore();
+}
+async function deleteStoreItem(id){ if(!confirm('Delete '+id+'?')) return; await db.ref('store/items/'+id).remove(); loadStore(); }
+</script>
+</body>
+</html>
+

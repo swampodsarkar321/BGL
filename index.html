@@ -726,7 +726,7 @@ const __MENU_HTML__ = ($('card') && $('card').innerHTML) || '';
 
 /* ===== GAME LOGIC (fully fixed) ===== */
 const Game = {
-  me:null, spectator:false, region:(function(){try{return localStorage.getItem('bgl_region')||'Asia';}catch(e){return 'Asia';}})(), online:false, training:false, replay:[], _lastBall:0, S:null, lastEv:0, lastShot:0, started:false, vsShown:false, _afterBallLock:false, timeOfDay:'afternoon', envType:'city', roadType:'paved', hasRiver:false, roomCode:null, forfeitHandled:false, username:(function(){try{return localStorage.getItem('bgl_name')||'';}catch(e){return '';}})(), trophies:(function(){try{return Number(localStorage.getItem('bgl_trophies'))||0;}catch(e){return 0;}})(), rating:(function(){try{return Number(localStorage.getItem('bgl_rating'))||1000;}catch(e){return 1000;}})(), coins:(function(){try{return Number(localStorage.getItem('bgl_coins'))||0;}catch(e){return 0;}})(), items:(function(){try{const v=JSON.parse(localStorage.getItem('bgl_items')); return Array.isArray(v)?v:['bat_basic','jersey_basic','cap_basic'];}catch(e){return ['bat_basic','jersey_basic','cap_basic'];}})(), equipped:(function(){try{const v=JSON.parse(localStorage.getItem('bgl_equipped')); return (v&&typeof v==='object')?v:{bat:'bat_basic',jersey:'jersey_basic',cap:'cap_basic'};}catch(e){return {bat:'bat_basic',jersey:'jersey_basic',cap:'cap_basic'};}})(), skins:(function(){try{const v=JSON.parse(localStorage.getItem('bgl_skins')); return (Array.isArray(v)&&v.length)?v:['Classic'];}catch(e){return ['Classic'];}})(), skin:(function(){try{return localStorage.getItem('bgl_skin')||'Classic';}catch(e){return 'Classic';}})(), pNames:{},
+  me:null, spectator:false, region:(function(){try{return localStorage.getItem('bgl_region')||'Asia';}catch(e){return 'Asia';}})(), online:false, training:false, replay:[], _lastBall:0, storeItems:null, S:null, lastEv:0, lastShot:0, started:false, vsShown:false, _afterBallLock:false, timeOfDay:'afternoon', envType:'city', roadType:'paved', hasRiver:false, roomCode:null, forfeitHandled:false, username:(function(){try{return localStorage.getItem('bgl_name')||'';}catch(e){return '';}})(), trophies:(function(){try{return Number(localStorage.getItem('bgl_trophies'))||0;}catch(e){return 0;}})(), rating:(function(){try{return Number(localStorage.getItem('bgl_rating'))||1000;}catch(e){return 1000;}})(), coins:(function(){try{return Number(localStorage.getItem('bgl_coins'))||0;}catch(e){return 0;}})(), items:(function(){try{const v=JSON.parse(localStorage.getItem('bgl_items')); return Array.isArray(v)?v:['bat_basic','jersey_basic','cap_basic'];}catch(e){return ['bat_basic','jersey_basic','cap_basic'];}})(), equipped:(function(){try{const v=JSON.parse(localStorage.getItem('bgl_equipped')); return (v&&typeof v==='object')?v:{bat:'bat_basic',jersey:'jersey_basic',cap:'cap_basic'};}catch(e){return {bat:'bat_basic',jersey:'jersey_basic',cap:'cap_basic'};}})(), skins:(function(){try{const v=JSON.parse(localStorage.getItem('bgl_skins')); return (Array.isArray(v)&&v.length)?v:['Classic'];}catch(e){return ['Classic'];}})(), skin:(function(){try{return localStorage.getItem('bgl_skin')||'Classic';}catch(e){return 'Classic';}})(), pNames:{},
 
   season(){ return new Date().toISOString().slice(0,7); },
   fresh:()=>({inn:1,batter:'p1',balls:0,score:{p1:0,p2:0},over:false,ev:null,target:0,timeOfDay:Game.timeOfDay,envType:Game.envType,roadType:Game.roadType,hasRiver:Game.hasRiver}),
@@ -1099,6 +1099,7 @@ const STORE_ITEMS=[
 function renderStore(){
   if(!Array.isArray(Game.items)) Game.items=['bat_basic','jersey_basic','cap_basic'];
   if(!Game.equipped||typeof Game.equipped!=='object') Game.equipped={bat:'bat_basic',jersey:'jersey_basic',cap:'cap_basic'};
+  if(!Game.storeItems){ Game.storeItems=STORE_ITEMS.slice(); if(typeof Net!=='undefined' && Net.db){ try{ Net.db.ref('store/items').once('value').then(sn=>{ const v=sn.val(); if(v){ Game.storeItems=Object.values(v); renderStore(); } }).catch(e=>{}); }catch(e){} } }
   if(!Array.isArray(Game.skins)) Game.skins=["Classic"];
   if(!Game.skin) Game.skin="Classic";
   Game.equipped.bat=Game.equipped.bat||"bat_basic"; Game.equipped.jersey=Game.equipped.jersey||"jersey_basic"; Game.equipped.cap=Game.equipped.cap||"cap_basic";
@@ -1106,7 +1107,7 @@ function renderStore(){
   ['bat','jersey','cap'].forEach(type=>{
     const list=$(type==='bat'?'batList':type==='jersey'?'jerseyList':'capList');
     if(!list) return; list.innerHTML='';
-    STORE_ITEMS.filter(i=>i.type===type).forEach(it=>{
+    (Game.storeItems||STORE_ITEMS).filter(i=>i.type===type).forEach(it=>{
       const owned=Game.items.includes(it.id);
       const equipped=Game.equipped[type]===it.id;
       const div=document.createElement('div'); div.style.margin='6px 0'; div.style.display='flex'; div.style.alignItems='center'; div.style.gap='8px';
