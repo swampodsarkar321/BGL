@@ -76,6 +76,7 @@ body.slow::after{background:radial-gradient(ellipse at center,transparent 32%,rg
     <button id="mRegion">Region: Asia</button>
     <button id="mLive">Watch Live 👁</button>
     <button id="mAbout">About</button>     <button id="mShare">Share 📲</button>
+    <button id="mKit">Kit Bag 🎁</button>
     <button id="mExit">Exit</button>
     <button id="bLocal">Pass &amp; play · একই স্ক্রিনে</button>
   </div>
@@ -759,6 +760,11 @@ const Game = {
 
   saveTrophies(){ try{ localStorage.setItem('bgl_trophies', String(this.trophies)); localStorage.setItem('bgl_rating', String(this.rating)); }catch(e){} },
   saveSkins(){ try{ localStorage.setItem('bgl_skins', JSON.stringify(this.skins)); }catch(e){} },
+  openKitBag(){ const r=Math.random(); let msg=''; if(r<0.5){ const c=10+Math.floor(Math.random()*41); this.coins+=c; this.saveCoins(); msg='You got '+c+' coins!'; }
+    else if(r<0.7){ const ids=(this.storeItems||STORE_ITEMS).map(x=>x.id); const id=ids[Math.floor(Math.random()*ids.length)]; if(!this.items.includes(id)){ this.items.push(id); this.saveItems(); msg='New item unlocked: '+id; } else { this.coins+=25; this.saveCoins(); msg='Duplicate item -> 25 coins'; } }
+    else if(r<0.85){ const t=5+Math.floor(Math.random()*16); this.trophies+=t; this.saveTrophies(); msg='You got '+t+' trophies!'; }
+    else { const s=['Classic','Red','Gold'][Math.floor(Math.random()*3)]; if(!this.skins.includes(s)){ this.skins.push(s); this.saveSkins(); msg='New skin unlocked: '+s; } else { this.coins+=30; this.saveCoins(); msg='Duplicate skin -> 30 coins'; } }
+    refreshStats(); alert(msg); },
   unlockSkin(){ if(!Array.isArray(this.skins)) this.skins=['Classic']; if(!this.skins.includes('Champion')) this.skins.push('Champion'); this.skin=this.skins[this.skins.length-1]; try{localStorage.setItem('bgl_skin',this.skin);}catch(e){} this.saveSkins(); },
   saveCoins(){ try{ localStorage.setItem('bgl_coins', String(this.coins)); }catch(e){} },
   saveItems(){ try{ localStorage.setItem('bgl_items', JSON.stringify(this.items)); localStorage.setItem('bgl_equipped', JSON.stringify(this.equipped)); }catch(e){} },
@@ -1243,6 +1249,7 @@ $('bSpectate').onclick=async()=>{ if(!ready) return; Sfx.init();
   const r=await Game.startSpectate(code); if(r!==true) msg.textContent=r; };
 
 $('mShare').onclick=async()=>{ const url=location.href; try{ if(navigator.share){ await navigator.share({title:'Bangladesh Gully League',text:'Play gully cricket with me!',url}); } else { await navigator.clipboard.writeText(url); alert('Link copied!'); } }catch(e){} };
+$('mKit').onclick=()=>{ Game.openKitBag(); };
 }
 bindMenu();
 </script>
